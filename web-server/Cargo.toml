@@ -1,0 +1,15 @@
+[package]
+edition = "2021"
+name = "web-server"
+version = "0.1.0"
+
+[dependencies]
+axum = "0.6.20"
+axum-macros = "0.3.8"
+rand = "0.8.4"
+serde = { version = "1.0.147", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+
+[[bin]]
+name = "web-server"
+path = "src/main.rs"

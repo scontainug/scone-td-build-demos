@@ -1,0 +1,42 @@
+apiVersion: scone.cloud/v1
+kind: Register
+metadata:
+  name: configmap-example
+spec:
+  protected_image: ${DEMO_IMAGE}
+  unprotected_image: ${DEMO_IMAGE}
+  enforce: ["/usr/local/bin/folder-reader"]
+  push_scone_image: false
+  manifest_env:
+    - {name: SCONE_VERSION, value: "1"}
+    - {name: SCONE_SYSLIBS, value: "1"}
+    - {name: SCONE_PRODUCTION, value: "0"}
+    - {name: SCONE_HEAP, value: "2G"}
+---
+apiVersion: scone.cloud/v1
+kind: Apply
+metadata:
+  name: configmap-example
+spec:
+  file:
+    - "${SCRIPT_DIR}/manifest.yaml"
+  output_manifest_file: "${SCRIPT_DIR}/manifest.prod.sanitized.yaml"
+  output_session_file: "${SCRIPT_DIR}/manifest.prod.session.yaml"
+  cas_address:
+    address: cas.default
+  session_env:
+    - {name: SCONE_VERSION, value: "1"}
+  manifest_env:
+    - {name: SCONE_VERSION, value: "1"}
+    - {name: SCONE_SYSLIBS, value: "1"}
+    - {name: SCONE_PRODUCTION, value: "0"}
+    - {name: SCONE_HEAP, value: "2G"}
+  permissive: true
+  spol: true
+  access_policy:
+    read:
+      - ANY
+    update:
+      - ANY
+    create_sessions:
+      - ANY

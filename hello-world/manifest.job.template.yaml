@@ -1,0 +1,18 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hello-world
+spec:
+  template:
+    metadata:
+      labels:
+        app: hello-world
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: hello-world
+          image: ${IMAGE}
+          imagePullPolicy: Always
+      imagePullSecrets:
+        - name: scontain
+  backoffLimit: 4
