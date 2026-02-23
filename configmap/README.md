@@ -16,56 +16,6 @@ Ensure you have the following:
 
 ______________________________________________________________________
 
-## ⚙️ 0. Set Up Your Cluster and Operator
-
-### Step 0.1: Export Registry Credentials
-
-```bash
-export REGISTRY_USERNAME=</NAME>
-export REGISTRY_ACCESS_TOKEN=</TOKEN>
-export REGISTRY_USER=</NAME>
-export REGISTRY_TOKEN=</TOKEN>
-export REGISTRY_EMAIL=</EMAIL>
-```
-
-### Step 0.2: Create the Kubernetes Cluster
-
-Skip this if you're using an existing SGX-enabled cluster like AKS.
-
-```bash
-k3d cluster create -a 3 scone-demo
-watch 'kubectl get pods -A'
-```
-
-### Step 0.3: Install SCONE Operator
-
-This installs the SCONE operator and provisions the Local Attestation Service (LAS):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/scontain/SH/master/5.9.0/operator_controller | bash -s - \
-  --set-version 5.9.0 --plugin --reconcile --update --secret-operator --verbose \
-  --username $REGISTRY_USERNAME --access-token $REGISTRY_ACCESS_TOKEN  \
-  --email $REGISTRY_EMAIL --dcap-api aecd5ebb682346028d60c36131eb2d92
-
-watch 'kubectl get pods -A'
-```
-
-### Step 0.4: Provision CAS
-
-```bash
-kubectl provision cas cas -n scone-system
-watch 'kubectl get cas -n scone-system'
-```
-
-______________________________________________________________________
-
-### Step 0.5: Build k8s-scone
-
-```
-cd k8s-scone
-cargo build
-```
-
 ## 🧱 1. Build the Native Rust Image
 
 This step builds a native (unencrypted) version of the image to validate behavior before enforcing protection with SCONE.
