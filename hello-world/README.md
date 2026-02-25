@@ -7,6 +7,8 @@
 - A token for accessing `scone.cloud` images on registry.scontain.com
 - A Kubernetes cluster
 - The Kubernetes command line tool (`kubectl`)
+- Rust `cargo` is installed (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
+- You installed `tplenv` (`cargo install tplenv`) and `retry-spinner` (`cargo install retry-spinner`)
 
 #### 2. Set up the environment
 
@@ -156,7 +158,8 @@ kubectl apply -f manifest.job.cleaned.yaml
 We need to sleep a little before log output of job becomes available. Hence, we execute the
 command within a retry wrapper `retry-spinner`:
 
-# Let's see the output of the job
+Let's see the output of the job
+
 ```bash
 retry-spinner -- kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps
 ```
@@ -169,3 +172,9 @@ Delete the job that we just created:
 kubectl delete job hello-world 
 popd
 ```
+
+### Automation
+
+You can automatically executing the steps of this  document by executing `./scripts/hello-world.sh`.  Note, that this will not ask for any user inputs: it will use the configuration in file `Values.yaml` (in directory `hello-world`).
+
+In case you update the commands within this document, you would need to run `/scripts/extract-all-scripts.sh` to re-generate `./scripts/hello-world.sh`.
