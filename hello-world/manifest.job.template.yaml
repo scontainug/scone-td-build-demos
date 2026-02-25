@@ -11,8 +11,8 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: hello-world
-          image: ${IMAGE}
+          image: ${IMAGE_NAME}
           imagePullPolicy: Always
       imagePullSecrets:
-        - name: scontain
+        - name: ${IMAGE_PULL_SECRET_NAME}
   backoffLimit: 4

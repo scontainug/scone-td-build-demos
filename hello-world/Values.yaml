@@ -1,0 +1,12 @@
+environment:
+  IMAGE_NAME: registry.scontain.com/k8s-scone-images/hello-world:native
+  IMAGE_PULL_SECRET_NAME: sconeapps
+  CAS_NAMESPACE: default
+  CAS_NAME: cas
+  DESTINATION_IMAGE_NAME: registry.scontain.com/workshop/hello-world:protected
+  SCONE_VERSION: 6.1.0-rc.0
+  CVM_MODE: null
+  SCONE_ENCLAVE: null
+  REGISTRY: registry.scontain.com
+  REGISTRY_TOKEN: ''
+  REGISTRY_USER: ''

@@ -4,19 +4,19 @@ This demo walks you through how to securely manage and access configuration data
 
 ______________________________________________________________________
 
-## ✅ Requirements
+### 1. Prerequisites
 
-Ensure you have the following:
+- A token for accessing `scone.cloud` images on registry.scontain.com
+- A Kubernetes cluster
+- The Kubernetes command line tool (`kubectl`)
 
-- [`kubectl`](https://kubernetes.io/docs/tasks/tools/)
-- A Kubernetes cluster **with SGX support** (e.g., AKS with Intel SGX, or a local SGX-compatible setup like `k3d`)
-- [Rust](https://www.rust-lang.org/)
-- `gcc-multilib` (required by SCONE toolchain)
-- Access to a SCONE-compatible container registry (e.g., `registry.scontain.com`)
+#### 2. Set up the environment
+
+Follow the [Setup environment](https://github.com/scontain/scone) guide to install tools. The simplest way is to install the tools in a Kubernetes cluster (see [k8s.md](https://github.com/scontain/scone/blob/main/k8s.md)).
 
 ______________________________________________________________________
 
-## 🧱 1. Build the Native Rust Image
+## 🧱 3. Build the Native Rust Image
 
 This step builds a native (unencrypted) version of the image to validate behavior before enforcing protection with SCONE.
 
