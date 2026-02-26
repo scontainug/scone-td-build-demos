@@ -6,6 +6,7 @@ set -euo pipefail
 files=(
   "hello-world/README.md scripts/hello-world.sh"
   "configmap/README.md scripts/configmap.sh"
+  "web-server/README.md scripts/web-server.sh"
 )
 
 # Loop over the file pairs
