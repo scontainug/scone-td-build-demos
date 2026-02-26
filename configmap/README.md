@@ -56,7 +56,7 @@ export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
 `tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`:
 
 ```bash
-eval $(tplenv --file environment-variables.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+eval $(tplenv --file environment-variables.md --create-values-file  --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
 ```
 
 ## 🧱 4. Build the Native Rust Image
@@ -145,7 +145,7 @@ This step:
 
 ______________________________________________________________________
 
-## 🚀 6. Deploy the SCONE-Protected App
+## 🚀 9. Deploy the SCONE-Protected App
 
 ```bash
 kubectl apply -f manifests/manifest.prod.sanitized.yaml
@@ -153,7 +153,7 @@ kubectl apply -f manifests/manifest.prod.sanitized.yaml
 
 ______________________________________________________________________
 
-## 📜 7. View Logs
+## 📜 10. View Logs
 
 Check that SCONE-protected containers can access the expected ConfigMap data:
 
@@ -164,7 +164,7 @@ retry-spinner -- kubectl logs job/my-rust-app -c reader-2 --follow
 
 ______________________________________________________________________
 
-## 🧹 8. Clean Up
+## 🧹 11. Clean Up
 
 ```bash
 kubectl delete -f manifests/manifest.prod.sanitized.yaml

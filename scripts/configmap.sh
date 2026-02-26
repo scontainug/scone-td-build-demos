@@ -68,7 +68,7 @@ export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
 EOF
 printf "${RESET}"
 
-eval $(tplenv --file environment-variables.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+eval $(tplenv --file environment-variables.md --create-values-file  --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
@@ -190,7 +190,7 @@ This step:
 
 ______________________________________________________________________
 
-## 🚀 6. Deploy the SCONE-Protected App
+## 🚀 9. Deploy the SCONE-Protected App
 
 EOF
 printf "${RESET}"
@@ -203,7 +203,7 @@ cat <<EOF
 
 ______________________________________________________________________
 
-## 📜 7. View Logs
+## 📜 10. View Logs
 
 Check that SCONE-protected containers can access the expected ConfigMap data:
 
@@ -219,7 +219,7 @@ cat <<EOF
 
 ______________________________________________________________________
 
-## 🧹 8. Clean Up
+## 🧹 11. Clean Up
 
 EOF
 printf "${RESET}"

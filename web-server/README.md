@@ -43,20 +43,77 @@ While it's more functional than a traditional "Web Server" program, it remains s
 
 ## How to Run the Demo
 
-1. **Prerequisites**:
+### 1. Prerequisites
 
-   - kubectl.
-   - sgx cluster with LAS.
-   - [Rust](https://www.rust-lang.org/)
-   - gcc-multilib
+- A token for accessing `scone.cloud` images on registry.scontain.com
+- A Kubernetes cluster
+- The Kubernetes command line tool (`kubectl`)
+- Rust `cargo` is installed (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
+- You installed `tplenv` (`cargo install tplenv`) and `retry-spinner` (`cargo install retry-spinner`)
 
-   ```bash
-   # Fill in your credentials
-   kubectl create secret docker-registry sconelsd \
-       --docker-server=registry.scontain.com \
-       --docker-username=$REGISTRY_USER \
-       --docker-password=$REGISTRY_TOKEN
-   ```
+#### 2. Set up the environment
+
+Follow the [Setup environment](https://github.com/scontain/scone) guide to install tools. The simplest way is to install the tools in a Kubernetes cluster (see [k8s.md](https://github.com/scontain/scone/blob/main/k8s.md)).
+
+#### 3. Setting up the Environment Variables
+
+We build a simple cloud-native `web-server` image. For that we use Rust. Rust is available as a container image `rust:latest` on Dockerhub. We define a `Dockerfile` that uses this Rust image to create a `hello world` image:
+
+- it creates a new Rust crate using `cargo`
+- the new crate is actually defining a `hello world` program
+- we build this project and push it to a repository to which we have push rights:
+
+```bash
+# Ensure we are in the correct directory. Assumption, we start at directory `scone-td-build-demos`
+pushd hello-world
+unset CONFIRM_ALL_ENVIRONMENT_VARIABLES
+```
+
+The default values of several environment variables are defined in file `Values.yaml`.
+`tplenv` asks you if all defaults are ok. It then sets the environment variables:
+
+ - `$IMAGE_NAME` - name of the native container image to deploy the `hello-world` application,
+ - `$DESTINATION_IMAGE_NAME` - destination of the confidential container image
+ - `$IMAGE_PULL_SECRET_NAME` the name of the pull secret to pull this image (default is `sconeapps`).  For simplicity, we assume that we can use the same pull secret to run the native and the confidential workload. 
+ - `$SCONE_VERSION` - the SCONE version to use (6.1.0-rc.0 for now) 
+ - `$CAS_NAMESPACE` - the CAS namespace to use (e.g., `default`)
+ - `$CAS_NAME` - The CAS name to use (e.g., `cas`) 
+ - `$CVM_MODE` - If you want to have CVM mode, set to `--cvm`. For SGX, leave empty. 
+ - `$SCONE_ENCLAVE` - In CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata-Pods (leave it empty). 
+
+Program `tplenv` asks the user if our current (default) configuration stored in `Values.yaml`.
+The user can modify the configuration if needed by setting the following variable to `--force`.
+Replace the `--force` by `""` to only ask for variables that are not defined in the environment
+or the Values.yaml file. Note that the `Values.yaml` file has priority over the environment variables.
+If the user changes values, they are written to `Values.yaml`.
+
+Ensure that we ask the user to confirm or modify all environment variables:
+
+```
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
+```
+
+`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`:
+
+```bash
+eval $(tplenv --file environment-variables.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+```
+
+We encrypt the policies that we send to CAS to ensure the integrity and confidentiality of the policies. To do so, we need to attest the CAS. We do this using a plugin of `kubectl` that attests the CAS via the Kubernetes API:
+
+```bash
+# attest the CAS - to ensure that we know the correct session encryption key
+kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME}
+```
+
+In case the attestation and verification of the CAS would fail, please read the output of `kubectl scone cas attest` to determine which vulnerabilities were detected. It also suggests which options to pass to `kubectl scone cas attest` to tolerate these vulnerabilities, i.e., to make the attestation and verification to succeed.
+
+Next, we need to customize the job manifest to set the right image name (`$IMAGE_NAME`) and the right pull secret (`$IMAGE_PULL_SECRET_NAME`):
+
+```bash
+# customize the job manifest
+tplenv --file manifest.job.template.yaml --create-values-file --output  manifest.job.yaml
+```
 
 1. **Register image:**
 

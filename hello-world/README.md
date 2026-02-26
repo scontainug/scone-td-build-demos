@@ -55,7 +55,7 @@ export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
 `tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`:
 
 ```bash
-eval $(tplenv --file environment-variables.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
 ```
 
 We encrypt the policies that we send to CAS to ensure the integrity and confidentiality of the policies. To do so, we need to attest the CAS. We do this using a plugin of `kubectl` that attests the CAS via the Kubernetes API:
@@ -150,7 +150,7 @@ Next, we use the native Kubernetes manifests and transform them into *sanitized*
 scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0  ${CVM_MODE} ${SCONE_ENCLAVE}
 ```
 
-#### 7. Apply the new manifest
+#### 8. Apply the new manifest
 
 ```bash
 # Ensure that previous run is not running anymore
@@ -167,7 +167,7 @@ Let's see the output of the job
 retry-spinner -- kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps
 ```
 
-#### 8. Uninstall `hello-world`
+#### 9. Uninstall `hello-world`
 
 Delete the job that we just created:
 

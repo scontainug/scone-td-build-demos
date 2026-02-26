@@ -67,7 +67,7 @@ export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
 EOF
 printf "${RESET}"
 
-eval $(tplenv --file environment-variables.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
 LILAC='\033[1;35m'
 RESET='\033[0m'
 printf "${LILAC}"
@@ -198,7 +198,7 @@ RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
-#### 7. Apply the new manifest
+#### 8. Apply the new manifest
 
 EOF
 printf "${RESET}"
@@ -225,7 +225,7 @@ RESET='\033[0m'
 printf "${LILAC}"
 cat <<EOF
 
-#### 8. Uninstall 'hello-world'
+#### 9. Uninstall 'hello-world'
 
 Delete the job that we just created:
 
