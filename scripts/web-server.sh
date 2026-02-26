@@ -1,301 +1,239 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-set -euo pipefail 
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
-# Web Server Demo
+# ---------------------------------------------------------------------------
+# Args
+# ---------------------------------------------------------------------------
+IMAGE=""
+CAS_ADDR="cas.default"
+PULL_SECRET="scontain"
+STORAGE_JSON="web-server.json"
 
-## Introduction
+usage() {
+  echo "Usage: $0 --image <IMAGE> [--cas <CAS_ADDR>] [--pullsecret <SECRET>] [--storage <STORAGE_JSON>]"
+  exit 1
+}
 
-This Rust application serves as a minimalistic web service built using the [Axum](https://github.com/tokio-rs/axum) framework.
-While it's more functional than a traditional "Web Server" program, it remains straightforward and easy to understand. Let's break it down:
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -i|--image)
+      IMAGE="$2"
+      shift 2
+      ;;
+    -c|--cas)
+      CAS_ADDR="$2"
+      shift 2
+      ;;
+    -p|--pullsecret)
+      PULL_SECRET="$2"
+      shift 2
+      ;;
+    -s|--storage)
+      STORAGE_JSON="$2"
+      shift 2
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
 
-## Endpoints
+[[ -z "$IMAGE" ]] && usage
 
-- **Generate Password Endpoint ('/gen')**:
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
-  - Generates a random password consisting of alphanumeric characters.
-  - Example Response:
+K8S_SCONE_BIN="$REPO_ROOT/target/debug/k8s-scone"
 
-  '''json
-  {
-    "password": "aBcD1234EeFgH5678"
-  }
-  '''
+WEB_SERVER_DIR="$SCRIPT_DIR"
+MANIFEST_TEMPLATE="$WEB_SERVER_DIR/manifest.template.yaml"
+MANIFEST="$WEB_SERVER_DIR/manifest.yaml"
+MANIFEST_CLEANED="$WEB_SERVER_DIR/manifest.cleaned.yaml"
 
-- **Print Path Endpoint ('/path')**:
+NAMESPACE="default"
+DEPLOYMENT_NAME="web-server"
+PORT_LOCAL=50000
+PORT_REMOTE=8000
 
-  - Reads files from the '/config' directory and returns their names and contents.
-  - Example Response:
+echo "Image:     $IMAGE"
+echo "CAS:       $CAS_ADDR"
+echo "Repo root: $REPO_ROOT"
 
-  '''json
-  {
-    "name": "file1.txt",
-    "content": "This is the content of file1.txt.\\n..."
-  }
-  '''
+# ---- Sanity checks ---------------------------------------------------------
+command -v docker   >/dev/null || { echo "docker not found";   exit 1; }
+command -v kubectl  >/dev/null || { echo "kubectl not found";  exit 1; }
+command -v cargo    >/dev/null || { echo "cargo not found";    exit 1; }
+command -v curl     >/dev/null || { echo "curl not found";     exit 1; }
+command -v envsubst >/dev/null || { echo "envsubst not found"; exit 1; }
 
-- **Print Environment Variable Endpoint ('/env/:env')**:
+[[ -f "$MANIFEST_TEMPLATE" ]] || { echo "manifest.template.yaml not found at $MANIFEST_TEMPLATE"; exit 1; }
 
-  - Retrieves the value of the specified environment variable.
-  - Example Response:
+# ---------------------------------------------------------------------------
+# Cleanup
+# ---------------------------------------------------------------------------
+cleanup() {
+  echo "Cleanup"
+  # Kill any lingering port-forward
+  if [[ -n "${PORT_FORWARD_PID:-}" ]]; then
+    kill "$PORT_FORWARD_PID" 2>/dev/null || true
+  fi
+  if [[ -f "$MANIFEST_CLEANED" ]]; then
+    kubectl delete -f "$MANIFEST_CLEANED" --ignore-not-found || true
+  fi
+  rm -f "$MANIFEST" "$MANIFEST_CLEANED" 2>/dev/null || true
+}
 
-  '''json
-  {
-    "value": "your_env_value_here"
-  }
-  '''
+trap cleanup EXIT
 
-## How to Run the Demo
+# ---------------------------------------------------------------------------
+# Pull secret check
+# ---------------------------------------------------------------------------
+check_pull_secret() {
+  echo "Checking pull secret '$PULL_SECRET' in namespace '$NAMESPACE'..."
 
-### 1. Prerequisites
+  if ! kubectl get namespace "$NAMESPACE" &>/dev/null; then
+    echo "Namespace '$NAMESPACE' does not exist."
+    echo "Create it with: kubectl create namespace $NAMESPACE"
+    exit 1
+  fi
 
-- A token for accessing 'scone.cloud' images on registry.scontain.com
-- A Kubernetes cluster
-- The Kubernetes command line tool ('kubectl')
-- Rust 'cargo' is installed ('curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh')
-- You installed 'tplenv' ('cargo install tplenv') and 'retry-spinner' ('cargo install retry-spinner')
+  if kubectl get secret "$PULL_SECRET" -n "$NAMESPACE" &>/dev/null; then
+    echo "Pull secret '$PULL_SECRET' found in namespace '$NAMESPACE'."
+  else
+    echo "Pull secret '$PULL_SECRET' NOT found in namespace '$NAMESPACE'."
+    echo "Create it with:"
+    echo -e "\n  kubectl create secret docker-registry $PULL_SECRET \\"
+    echo -e "    --docker-server=registry.scontain.com \\"
+    echo -e "    --docker-username=\$REGISTRY_USER \\"
+    echo -e "    --docker-password=\$REGISTRY_TOKEN \\"
+    echo -e "    -n $NAMESPACE\n"
+    exit 1
+  fi
+}
 
-#### 2. Set up the environment
+check_pull_secret
 
-Follow the [Setup environment](https://github.com/scontain/scone) guide to install tools. The simplest way is to install the tools in a Kubernetes cluster (see [k8s.md](https://github.com/scontain/scone/blob/main/k8s.md)).
+# ---- Build k8s-scone -------------------------------------------------------
+echo "Building k8s-scone"
+pushd "$REPO_ROOT" >/dev/null
+cargo build
+popd >/dev/null
 
-#### 3. Setting up the Environment Variables
+[[ -x "$K8S_SCONE_BIN" ]] || { echo "k8s-scone binary missing after build"; exit 1; }
 
-We build a simple cloud-native 'web-server' image. For that we use Rust. Rust is available as a container image 'rust:latest' on Dockerhub. We define a 'Dockerfile' that uses this Rust image to create a 'hello world' image:
+# ---- Build & push web-server image -----------------------------------------
+echo "Building web-server image: $IMAGE"
+pushd "$WEB_SERVER_DIR" >/dev/null
+docker build -t "$IMAGE" .
+docker push "$IMAGE"
+popd >/dev/null
 
-- it creates a new Rust crate using 'cargo'
-- the new crate is actually defining a 'hello world' program
-- we build this project and push it to a repository to which we have push rights:
+# ---- Render manifest template ----------------------------------------------
+echo "Rendering manifest template"
+export IMAGE_NAME="$IMAGE"
+envsubst < "$MANIFEST_TEMPLATE" > "$MANIFEST"
 
-EOF
-printf "${RESET}"
+# ---- Register the image with SCONE -----------------------------------------
+echo "Registering image with k8s-scone"
+"$K8S_SCONE_BIN" register \
+  --protected-image   "$IMAGE" \
+  --unprotected-image "$IMAGE" \
+  --manifest-env SCONE_PRODUCTION=0 \
+  --enforce /app/web-server \
+  -s "$STORAGE_JSON"
 
-# Ensure we are in the correct directory. Assumption, we start at directory `scone-td-build-demos`
-pushd web-server
-unset CONFIRM_ALL_ENVIRONMENT_VARIABLES
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
+echo "Pushing SCONE-protected image"
+docker push "$IMAGE"-scone
 
-The default values of several environment variables are defined in file 'Values.yaml'.
-'tplenv' asks you if all defaults are ok. It then sets the environment variables:
+# ---- Apply / convert the manifest ------------------------------------------
+echo "Converting manifest with k8s-scone apply"
 
- - '\$IMAGE_NAME' - name of the native container image to deploy the 'hello-world' application,
- - '\$DESTINATION_IMAGE_NAME' - destination of the confidential container image
- - '\$IMAGE_PULL_SECRET_NAME' the name of the pull secret to pull this image (default is 'sconeapps').  For simplicity, we assume that we can use the same pull secret to run the native and the confidential workload. 
- - '\$SCONE_VERSION' - the SCONE version to use (6.1.0-rc.0 for now) 
- - '\$CAS_NAMESPACE' - the CAS namespace to use (e.g., 'default')
- - '\$CAS_NAME' - The CAS name to use (e.g., 'cas') 
- - '\$CVM_MODE' - If you want to have CVM mode, set to '--cvm'. For SGX, leave empty. 
- - '\$SCONE_ENCLAVE' - In CVM mode, you can run using confidential Kubernetes nodes (set to '--scone-enclave') or Kata-Pods (leave it empty). 
+"$K8S_SCONE_BIN" apply \
+  -f "$MANIFEST" \
+  -c "$CAS_ADDR" \
+  -p \
+  -s "$STORAGE_JSON" \
+  --manifest-env SCONE_SYSLIBS=1 \
+  --manifest-env SCONE_PRODUCTION=0 \
+  --manifest-env SCONE_LOG=DEBUG \
+  --manifest-env SCONE_VERSION=1 \
+  --session-env SCONE_LOG=DEBUG \
+  --session-env SCONE_VERSION=1  
 
-Program 'tplenv' asks the user if our current (default) configuration stored in 'Values.yaml'.
-The user can modify the configuration if needed by setting the following variable to '--force'.
-Replace the '--force' by '""' to only ask for variables that are not defined in the environment
-or the Values.yaml file. Note that the 'Values.yaml' file has priority over the environment variables.
-If the user changes values, they are written to 'Values.yaml'.
+[[ -f "$MANIFEST_CLEANED" ]] || { echo "manifest.cleaned.yaml not generated"; exit 1; }
 
-Ensure that we ask the user to confirm or modify all environment variables:
+# ---- Deploy ----------------------------------------------------------------
+echo "Deploying web-server"
+kubectl apply -f "$MANIFEST_CLEANED"
 
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
+echo "Waiting for Deployment rollout"
+kubectl rollout status deployment/"$DEPLOYMENT_NAME" -n "$NAMESPACE" --timeout=300s
 
-'tplenv' will now ask the user for all environment variables that are described in file 'environment-variables.md':
+sleep 30
+# ---- Port-forward ----------------------------------------------------------
+echo "Starting port-forward on localhost:$PORT_LOCAL → $DEPLOYMENT_NAME:$PORT_REMOTE"
+kubectl port-forward deployment/"$DEPLOYMENT_NAME" "$PORT_LOCAL:$PORT_REMOTE" &
+PORT_FORWARD_PID=$!
 
-EOF
-printf "${RESET}"
+# Give port-forward a moment to be ready
+sleep 3
 
-eval $(tplenv --file environment-variables.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
+BASE_URL="http://localhost:$PORT_LOCAL"
 
-We encrypt the policies that we send to CAS to ensure the integrity and confidentiality of the policies. To do so, we need to attest the CAS. We do this using a plugin of 'kubectl' that attests the CAS via the Kubernetes API:
+# ---- Run tests -------------------------------------------------------------
+echo ""
+echo "Running endpoint tests against $BASE_URL"
+STATUS=0
 
-EOF
-printf "${RESET}"
+assert_http_ok() {
+  local label="$1"
+  local url="$2"
+  local http_code
+  http_code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+  if [[ "$http_code" == "200" ]]; then
+    echo "  ✔ $label (HTTP $http_code)"
+  else
+    echo "  ✘ $label (HTTP $http_code)"
+    STATUS=1
+  fi
+}
 
-# attest the CAS - to ensure that we know the correct session encryption key
-kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME}
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
+assert_body_contains() {
+  local label="$1"
+  local url="$2"
+  local pattern="$3"
+  local body
+  body=$(curl -s "$url")
+  if echo "$body" | grep -q "$pattern"; then
+    echo "  ✔ $label"
+  else
+    echo "  ✘ $label (pattern '$pattern' not found in: $body)"
+    STATUS=1
+  fi
+}
 
-In case the attestation and verification of the CAS would fail, please read the output of 'kubectl scone cas attest' to determine which vulnerabilities were detected. It also suggests which options to pass to 'kubectl scone cas attest' to tolerate these vulnerabilities, i.e., to make the attestation and verification to succeed.
+# /gen — should return {"password": "..."}
+assert_body_contains "GET /gen returns password field"    "$BASE_URL/gen"                         'password'
 
-Next, we need to customize the job manifest to set the right image name ('\$IMAGE_NAME') and the right pull secret ('\$IMAGE_PULL_SECRET_NAME'):
+# /path — should return {"name": ..., "content": ...}
+assert_http_ok       "GET /path responds 200"             "$BASE_URL/path"
 
-EOF
-printf "${RESET}"
+# /env/:env
+assert_body_contains "GET /env/PLAYER_INITIAL_LIVES"      "$BASE_URL/env/PLAYER_INITIAL_LIVES"    '3'
+assert_body_contains "GET /env/UI_PROPERTIES_FILE_NAME"   "$BASE_URL/env/UI_PROPERTIES_FILE_NAME" 'user-interface.properties'
+assert_body_contains "GET /env/SECRET_ENV"                "$BASE_URL/env/SECRET_ENV"              'value-2'
+assert_body_contains "GET /env/SIMPLE_ENV"                "$BASE_URL/env/SIMPLE_ENV"              'IM WORKING WELL'
 
-# customize the job manifest
-tplenv --file manifest.template.yaml --create-values-file --output  manifest.yaml
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
+echo ""
 
-4. **Register image:**
-
-Now, we create the native 'web-server' application using Rust.
-
-EOF
-printf "${RESET}"
-
-# Build the Scone image for the demo client
-docker build -t ${IMAGE_NAME} .
-
-# Push it to the registry
-docker push ${IMAGE_NAME}
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
-
-When transforming the binaries in the container image for confidential computing, we sign the binaries with a key. 'scone-td-build' assumes, by default, that this key is stored in file 'identity.pem'. We can generate this file as follows:
-
-- we first check if the file exists, and
-- if it does not yet exist, we create with 'openssl'
-
-EOF
-printf "${RESET}"
-
-if [ ! -f identity.pem ]; then
-  echo "Generating identity.pem ..."
-  openssl genrsa -3 -out identity.pem 3072
+# ---- Result ----------------------------------------------------------------
+if [[ $STATUS -eq 0 ]]; then
+  echo "✅ TEST PASSED: build → register → deploy → validation OK"
 else
-  echo "identity.pem already exists."
+  echo "❌ TEST FAILED"
 fi
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
 
-EOF
-printf "${RESET}"
-
-scone-td-build register \
-    --protected-image ${IMAGE_NAME} \
-    --unprotected-image ${IMAGE_NAME} \
-    --destination-image ${DESTINATION_IMAGE_NAME} \
-    --push \
-    -s ./storage.json \
-    --enforce ./web-server \
-    --version ${SCONE_VERSION}
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
-
-1. **Test the manifest [optional]**:
-
-EOF
-printf "${RESET}"
-
-kubectl apply -f manifest.yaml
-
-retry-spinner -- kubectl logs -l app=web-server --pod-running-timeout=2m --timestamps
-# Use this command in another terminal or add `&` at the end of the command to run in the background
-kubectl port-forward deployment/web-server 8000:8000 &
-PF_PID=$!
-
-curl http://localhost:8000/env/MY_POD_IP
-
-kubectl delete -f manifest.yaml
-
-# Close the port forward after the execution
-kill -9 $PF_PID
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
-
-6. **Convert the manifest**:
-
-If you want to see how the scone image was registered in k8s-scone, take a look in [register-image](../../../register-image.md) markdown.
-
-EOF
-printf "${RESET}"
-
-scone-td-build apply \
-    -f manifest.yaml \
-    -c ${CAS_NAME}.${default} \
-    -s ./storage.json \
-    -p
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
-
-7. **Deploy the new manifest**:
-
-EOF
-printf "${RESET}"
-
-kubectl apply -f manifest.cleaned.yaml
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
-
-   > For the next step, it is expected that you have a Kubernetes cluster with SGX resource and the presence of a LAS
-
-8. **Run the demo**:
-
-   - Open port:
-
-   > Use this command in another terminal or add '&' at the end of the command to run in the background
-
-EOF
-printf "${RESET}"
-
-retry-spinner -- kubectl logs -l app=web-server --pod-running-timeout=2m --timestamps
-
-kubectl port-forward deployment/web-server 8000:8000 &
-PF_PID=$!
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
-
-   - send requests:
-
-   > You can execute the ['./examples/demo/web-server/test.sh'](./test.sh) to run all of these tests easily
-
-EOF
-printf "${RESET}"
-
-# Test path
-curl http://localhost:8000/path
-
-# Test gen
-curl http://localhost:8000/gen
-
-# Test env
-curl http://localhost:8000/env/PLAYER_INITIAL_LIVES
-curl http://localhost:8000/env/UI_PROPERTIES_FILE_NAME
-curl http://localhost:8000/env/SECRET_ENV
-curl http://localhost:8000/env/SIMPLE_ENV
-curl http://localhost:8000/env/MY_POD_IP
-LILAC='\033[1;35m'
-RESET='\033[0m'
-printf "${LILAC}"
-cat <<EOF
-
-9. **Uninstall demo**:
-
-   '''bash
-   kubectl delete -f manifest.cleaned.yaml
-   kill -9 \$PF_PID
-   '''
-
-We introduced a simple, yet functional "Web Server" web service in Rust! Feel free to explore and modify this demo to suit your needs.
-If you have any questions or need further assistance, feel free to ask! 😊🚀
-EOF
-printf "${RESET}"
-
+exit $STATUS
