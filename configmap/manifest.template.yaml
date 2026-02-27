@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+data:
+  server.crt: |
+    -----BEGIN CERTIFICATE-----
+    MIIDmTCCAoGgAwIBAgIUMLjxKb0Yz3+t8CCz1tMtTPaRjK4wDQYJKoZIhvcNAQEL
+    BQAwaDELMAkGA1UEBhMCQlIxEDAOBgNVBAgMB1BhcmFpYmExFzAVBgNVBAcMDkNh
+    bXBpbmEgR3JhbmRlMQ4wDAYDVQQKDAVNeU9yZzEPMA0GA1UECwwGTXlVbml0MQ0w
+    CwYDVQQDDARNeUNBMB4XDTI0MDgwODAwNTA0OVoXDTI1MDgwODAwNTA0OVowcDEL
+    MAkGA1UEBhMCQlIxEDAOBgNVBAgMB1BhcmFpYmExFzAVBgNVBAcMDkNhbXBpbmEg
+    R3JhbmRlMQ4wDAYDVQQKDAVNeU9yZzEPMA0GA1UECwwGTXlVbml0MRUwEwYDVQQD
+    DAxzZXJ2ZXIubG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCf
+    lJwmCiANn+kIiLZ+sjMI01D94hrbsRrd6DEK1yRGA2Gfu06TgUdttMmaO6Cq9imn
+    tcki03QfExRSbnpcTdylK6xCOCe7IyWofMZ9kECYaxVMnxs1Ut5KFPXx8RUaFJf8
+    5FitnG/KUmHYC5z5QewXL6+Vr3G7OodKU0MwSYLeMf2TQFZLwbxD4RSI7NLxFChx
+    +hyb9fOCTUImSSD2G+lQlue/q2dZfNEn+X8T8PlhJyi8f9ZAeaBBf/ojtpfilLot
+    YP6ZDMfCZJw6Gv8JlQlMupbnvmrCLo8Mypbq8cTQI/CaS+UlsL7sHJWd3y+hHS0V
+    8OYuMQ7ancUP7cEf/fQtAgMBAAGjMzAxMAkGA1UdEwQCMAAwCwYDVR0PBAQDAgWg
+    MBcGA1UdEQQQMA6CDHNlcnZlci5sb2NhbDANBgkqhkiG9w0BAQsFAAOCAQEAg+zx
+    V9OS5sh8FOM0ewMfzfdFe6u+4E6vpA7Yq60u1D/bRThw1gls7FtWUep98PZqYw66
+    MuE0ZhfP1ZtmS6NfB+Btz1y9Igco4VC8ss2yBpmtfaTpFEBKAvpASL3aivEzTdPV
+    8x1GbVFc3WVsaJzWi0RJL4m5T7rzGlVZ8D8SQHSrgdm+yDCIrYNzCe77rYZQrfRx
+    7uEkyABJpH3cayF9iiPf8iQuBqNcl5STariRmlgv9sUVD2pWa72g633fTSorvwxN
+    rmplBGt5hEeLxznseLs5GOg3eLsa2u8/52D9vM9jdRCSfv4NQxTYN0rf3yfhjLOh
+    Jsvt6KP3H2ANqPvPjQ==
+    -----END CERTIFICATE-----
+  your_python_script.py: |
+    # Contents of your Python script here
+    print("Hello from the Python script!")
+  file1.txt: |
+    Welcome to the ConfigMap example.
+    This is the content of file1.txt.
+    Feel free to add more information!
+  file2.json: |
+    {
+      "name": "John Doe",
+      "email": "john.doe@example.com",
+      "role": "Software Engineer"
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-rust-app
+spec:
+  template:
+    metadata:
+      labels:
+        app: my-rust-app
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: reader-1
+          image: ${DEMO_IMAGE}
+          imagePullPolicy: Always
+          command: ["/usr/local/bin/folder-reader"]
+          volumeMounts:
+            - name: config-volume-1
+              mountPath: /config
+        - name: reader-2
+          image: ${DEMO_IMAGE}
+          imagePullPolicy: Always
+          command: ["/usr/local/bin/folder-reader"]
+          volumeMounts:
+            - name: config-volume-2
+              mountPath: /config
+      imagePullSecrets:
+        - name: ${IMAGE_PULL_SECRET_NAME}
+      volumes:
+        - name: config-volume-1
+          configMap:
+            name: my-configmap
+            items:
+              - key: "file1.txt"
+                path: "file1.txt"
+              - key: "file2.json"
+                path: "file2.json"
+        - name: config-volume-2
+          configMap:
+            name: my-configmap
+            items:
+              - key: "your_python_script.py"
+                path: "your_python_script.py"
+              - key: "server.crt"
+                path: "server.crt"

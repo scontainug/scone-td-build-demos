@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dotfile-secret
+data:
+  secret_env: "dmFsdWUtMg0KDQo="
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: game-demo
+data:
+  player_initial_lives: "3"
+  ui_properties_file_name: "user-interface.properties"
+  game.properties: "enemy.types=aliens,monsters\nplayer.maximum-lives=5    \n"
+  user-interface.properties: "color.good=purple\ncolor.bad=yellow\nallow.textmode=true   \n"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-server
+  template:
+    metadata:
+      labels:
+        app: web-server
+    spec:
+      containers:
+        - name: web-server
+          image: ${IMAGE_NAME}
+          imagePullPolicy: Always
+          command: ["./web-server"]
+          env:
+            - name: SIMPLE_ENV
+              value: "IM WORKING WELL"
+            - name: PLAYER_INITIAL_LIVES
+              valueFrom:
+                configMapKeyRef:
+                  name: game-demo
+                  key: player_initial_lives
+            - name: UI_PROPERTIES_FILE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: game-demo
+                  key: ui_properties_file_name
+            - name: SECRET_ENV
+              valueFrom:
+                secretKeyRef:
+                  name: dotfile-secret
+                  key: secret_env
+            - name: MY_POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: config
+              mountPath: "/config"
+              readOnly: true
+      imagePullSecrets:
+        - name: ${IMAGE_PULL_SECRET_NAME}
+      volumes:
+        - name: config
+          configMap:
+            name: game-demo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-server
+spec:
+  selector:
+    app: web-server
+  ports:
+    - name: main-port
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
