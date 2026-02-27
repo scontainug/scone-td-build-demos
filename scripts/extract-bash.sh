@@ -92,6 +92,7 @@ PROMPT="${PROMPT:-$'\[\e[1;32m\]demo\[\e[0m\]:\[\e[1;34m\]~\[\e[0m\]\$ '}"
 COLUMNS="${COLUMNS:-100}"
 LINES="${LINES:-26}"
 ORANGE="${ORANGE:-\033[38;5;208m}"
+LILAC="${LILAC:-\033[38;5;141m}"
 RESET="${RESET:-\033[0m}"
 
 slow_type() {
@@ -150,12 +151,20 @@ markdown_buffer=()
 code_buffer=()
 
 flush_markdown() {
-  if [[ "$mode" == "docs-pe" ]]; then
-    markdown_buffer=()
-    return
-  fi
-
   if [[ ${#markdown_buffer[@]} -gt 0 ]]; then
+    if [[ "$mode" == "docs-pe" ]]; then
+      echo 'printf "%b" "$LILAC"' >> "$TMP_OUTPUT"
+      echo "cat <<'EOF'" >> "$TMP_OUTPUT"
+      for line in "${markdown_buffer[@]}"; do
+        echo "$line" >> "$TMP_OUTPUT"
+      done
+      echo "EOF" >> "$TMP_OUTPUT"
+      echo 'printf "%b" "$RESET"' >> "$TMP_OUTPUT"
+      echo "" >> "$TMP_OUTPUT"
+      markdown_buffer=()
+      return
+    fi
+
     echo 'printf "${VIOLET}"' >> "$TMP_OUTPUT"
     echo "cat <<'EOF'" >> "$TMP_OUTPUT"
     for line in "${markdown_buffer[@]}"; do
