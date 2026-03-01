@@ -12,7 +12,7 @@ cat <<'EOF'
 
 ## Steps to Run the Hello World Program
 
-![Hello-World Example](../docs/hello-world.svg)
+![Hello-World Example](../docs/hello-world.webm)
 
 ### 1. Prerequisites
 

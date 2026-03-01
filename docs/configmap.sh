@@ -55,7 +55,7 @@ cat <<'EOF'
 
 This example walks you through how to securely manage and access configuration data in Kubernetes using a `ConfigMap` and a SCONE-enabled Rust application. You’ll start with a plain (unencrypted) deployment, then transition to a fully protected SCONE deployment.
 
-![ConfigMap Example](../docs/configmap.svg)
+![ConfigMap Example](../docs/configmap.webm)
 
 ______________________________________________________________________
 
