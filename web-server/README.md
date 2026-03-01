@@ -5,7 +5,7 @@
 This Rust application serves as a minimalistic web service built using the [Axum](https://github.com/tokio-rs/axum) framework.
 While it's more functional than a traditional "Web Server" program, it remains straightforward and easy to understand. Let's break it down:
 
-![Web-Server Example](../docs/web-server.svg)
+![Web-Server Example](../docs/web-server.webm)
 
 ## Endpoints
 
