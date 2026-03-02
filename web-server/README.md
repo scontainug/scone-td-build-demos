@@ -2,8 +2,8 @@
 
 ## Introduction
 
-This Rust application serves as a minimalistic web service built using the [Axum](https://github.com/tokio-rs/axum) framework.
-While it's more functional than a traditional "Web Server" program, it remains straightforward and easy to understand. Let's break it down:
+This Rust application is a minimal web service built with the [Axum](https://github.com/tokio-rs/axum) framework.
+While it is more functional than a traditional "web server" example, it remains straightforward and easy to understand.
 
 ![Web-Server Example](../docs/web-server.gif)
 
@@ -59,34 +59,34 @@ Follow the [Setup environment](https://github.com/scontain/scone) guide to insta
 
 #### 3. Setting up the Environment Variables
 
-We build a simple cloud-native `web-server` image. For that we use Rust. Rust is available as a container image `rust:latest` on Dockerhub. We define a `Dockerfile` that uses this Rust image to create a `hello world` image:
+We build a simple cloud-native `web-server` image. For this, we use Rust. Rust is available as the container image `rust:latest` on Docker Hub. We define a `Dockerfile` that uses this image to create a `web-server` image:
 
 - it creates a new Rust crate using `cargo`
-- the new crate is actually defining a `hello world` program
-- we build this project and push it to a repository to which we have push rights:
+- the new crate defines the `web-server` program
+- we build this project and push it to a repository where we have push access:
 
 ```bash
-# Ensure we are in the correct directory. Assumption, we start at directory `scone-td-build-demos`
+# Ensure we are in the correct directory. We assume we start in `scone-td-build-demos`.
 pushd web-server
 export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 ```
 
 The default values of several environment variables are defined in file `Values.yaml`.
-`tplenv` asks you if all defaults are ok. It then sets the environment variables:
+`tplenv` asks whether all defaults are okay. It then sets the environment variables:
 
- - `$IMAGE_NAME` - name of the native container image to deploy the `hello-world` application,
+ - `$IMAGE_NAME` - name of the native container image to deploy the `web-server` application,
  - `$DESTINATION_IMAGE_NAME` - destination of the confidential container image
- - `$IMAGE_PULL_SECRET_NAME` the name of the pull secret to pull this image (default is `sconeapps`).  For simplicity, we assume that we can use the same pull secret to run the native and the confidential workload. 
+ - `$IMAGE_PULL_SECRET_NAME` - the name of the pull secret used to pull this image (default: `sconeapps`). For simplicity, we assume we can use the same pull secret for both the native and confidential workloads.
  - `$SCONE_VERSION` - the SCONE version to use (7.0.0-alpha.1 for now) 
  - `$CAS_NAMESPACE` - the CAS namespace to use (e.g., `default`)
  - `$CAS_NAME` - The CAS name to use (e.g., `cas`) 
- - `$CVM_MODE` - If you want to have CVM mode, set to `--cvm`. For SGX, leave empty. 
- - `$SCONE_ENCLAVE` - In CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata-Pods (leave it empty). 
+ - `$CVM_MODE` - if you want CVM mode, set it to `--cvm`. For SGX, leave it empty.
+ - `$SCONE_ENCLAVE` - in CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata Pods (leave it empty).
 
-Program `tplenv` asks the user if our current (default) configuration stored in `Values.yaml`.
+Program `tplenv` asks the user whether to keep the current (default) configuration stored in `Values.yaml`.
 The user can modify the configuration if needed by setting the following variable to `--force`.
 Replace the `--force` by `""` to only ask for variables that are not defined in the environment
-or the Values.yaml file. Note that the `Values.yaml` file has priority over the environment variables.
+or the `Values.yaml` file. Note that `Values.yaml` has priority over environment variables.
 If the user changes values, they are written to `Values.yaml`.
 
 Ensure that we ask the user to confirm or modify all environment variables:
@@ -95,7 +95,7 @@ Ensure that we ask the user to confirm or modify all environment variables:
 export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
 ```
 
-`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`:
+`tplenv` will now ask for all environment variables described in `environment-variables.md`:
 
 ```bash
 eval $(tplenv --file environment-variables.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
@@ -117,7 +117,7 @@ Next, we need to customize the job manifest to set the right image name (`$IMAGE
 tplenv --file manifest.template.yaml --create-values-file --output  manifest.yaml
 ```
 
-4. **Register image:**
+4. **Register image**
 
 Now, we create the native `web-server` application using Rust.
 
@@ -132,7 +132,7 @@ docker push ${IMAGE_NAME}
 When transforming the binaries in the container image for confidential computing, we sign the binaries with a key. `scone-td-build` assumes, by default, that this key is stored in file `identity.pem`. We can generate this file as follows:
 
 - we first check if the file exists, and
-- if it does not yet exist, we create with `openssl`
+- if it does not exist, we create it with `openssl`
 
 ```bash
 if [ ! -f identity.pem ]; then
@@ -154,9 +154,9 @@ scone-td-build register \
     --version ${SCONE_VERSION}
 ```
 
-1. **Test the manifest [optional]**:
+5. **Test the manifest [optional]**
 
-First, we clean up - just in case a previous version is running:
+First, we clean up, just in case a previous version is running:
 
 ```bash
 # Make sure web-server does not yet run
@@ -165,14 +165,14 @@ kubectl wait --for=delete pod -l app=web-server --timeout=240s
 kill $(cat /tmp/pf-8000.pid) || true
 ```
 
-Second, we start the deployment
+Second, we start the deployment.
 
 ```bash
 kubectl apply -f manifest.yaml
 kubectl wait --for=condition=Ready pod -l app="web-server" --timeout=240s
 
 # retry-spinner --retries 40 --wait 10 -- kubectl logs -l app=web-server --pod-running-timeout=2m --timestamps
-# Use this command in another terminal or add `&` at the end of the command to run in the background
+# Use this command in another terminal, or run it in the background by appending `&`.
 kubectl port-forward deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
 
 retry-spinner -- curl http://localhost:8000/env/MY_POD_IP
@@ -181,14 +181,14 @@ retry-spinner -- curl http://localhost:8000/env/MY_POD_IP
 kubectl delete -f manifest.yaml
 kubectl wait --for=delete pod -l app=web-server --timeout=240s
 
-# Close the port forward after the execution
+# Close the port forward after execution
 kill $(cat /tmp/pf-8000.pid) || true
 rm /tmp/pf-8000.pid
 ```
 
-6. **Convert the manifest**:
+6. **Convert the manifest**
 
-If you want to see how the scone image was registered in scone-td-build, take a look in [register-image](../../../register-image.md) markdown.
+If you want to see how the SCONE image was registered with `scone-td-build`, see [register-image](../../../register-image.md).
 
 ```bash
 scone-td-build apply \
@@ -201,15 +201,15 @@ scone-td-build apply \
     --version ${SCONE_VERSION} -p
 ```
 
-7. **Deploy the new manifest**:
+7. **Deploy the new manifest**
 
 ```bash
 kubectl apply -f manifest.cleaned.yaml
 ```
 
-   > For the next step, it is expected that you have a Kubernetes cluster with SGX resource and the presence of a LAS
+> For the next step, it is expected that you have a Kubernetes cluster with SGX resources and a running LAS.
 
-8. **Run the demo**:
+8. **Run the demo**
 
 We wait for the pod to become ready before we try a port-forward to access the `web-server`:
 
@@ -218,12 +218,12 @@ kubectl  wait --for=condition=Ready pod -l app="web-server" --timeout=240s
 # being ready does not mean that port is available
 sleep 20
 
-# we keep to PID to be able to delete the port-forward
+# We keep the PID so we can stop the port-forward process later.
 kubectl port-forward deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid 
 ```
 
-We now send the first request. We do this with some retry just to ensure that the service is indeed ready to serve requests. 
- 
+We now send the first request. We add retries to ensure that the service is ready to serve requests.
+
 We execute the [`test.sh`](./test.sh) to run all of these tests more easily:
 
 ```bash
@@ -237,7 +237,7 @@ retry-spinner -- curl http://localhost:8000/gen
 ./test.sh
 ```
 
-9. **Uninstall demo**:
+9. **Uninstall the demo**
 
 ```bash
 kubectl delete -f manifest.cleaned.yaml
@@ -246,5 +246,4 @@ rm /tmp/pf-8000.pid
 popd
 ```
 
-We introduced a simple, yet functional "Web Server" web service in Rust! Feel free to explore and modify this demo to suit your needs.
-If you have any questions or need further assistance, feel free to ask! 😊🚀
+This demonstrates a simple, yet functional, Rust web service. Feel free to explore and modify this demo to suit your needs.

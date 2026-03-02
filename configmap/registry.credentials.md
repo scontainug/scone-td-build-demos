@@ -1,2 +1,3 @@
-Docker registry storing the protected image: ${REGISTRY} 
-Your user name ${REGISTRY_USER} in this registry and your token for this registry ${REGISTRY_TOKEN}
+Docker registry that stores the protected image: `${REGISTRY}`.
+Your username in this registry: `${REGISTRY_USER}`.
+Your token for this registry: `${REGISTRY_TOKEN}`.

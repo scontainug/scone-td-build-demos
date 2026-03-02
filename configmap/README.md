@@ -22,7 +22,7 @@ ______________________________________________________________________
 
 #### 3. Setting up the Environment Variables
 
-First, we ensure we are in the correct directory. Assumption, we start at directory `scone-td-build-demos`.
+First, we ensure we are in the correct directory. We assume we start in `scone-td-build-demos`.
 
 
 ```bash
@@ -32,21 +32,21 @@ export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 ```
 
 The default values of several environment variables are defined in file `Values.yaml`.
-`tplenv` asks you if all defaults are ok. It then sets the environment variables:
+`tplenv` asks whether all defaults are okay. It then sets the environment variables:
 
  - `$DEMO_IMAGE` - name of the native container image to deploy the application,
  - `$DESTINATION_IMAGE_NAME` - destination of the confidential container image
- - `$IMAGE_PULL_SECRET_NAME` the name of the pull secret to pull this image (default is `sconeapps`).  For simplicity, we assume that we can use the same pull secret to run the native and the confidential workload. 
+ - `$IMAGE_PULL_SECRET_NAME` - the name of the pull secret used to pull this image (default: `sconeapps`). For simplicity, we assume we can use the same pull secret for both the native and confidential workloads.
  - `$SCONE_VERSION` - the SCONE version to use (7.0.0-alpha.1) 
  - `$CAS_NAMESPACE` - the CAS namespace to use (e.g., `default`)
  - `$CAS_NAME` - The CAS name to use (e.g., `cas`) 
- - `$CVM_MODE` - If you want to have CVM mode, set to `--cvm`. For SGX, leave empty. 
- - `$SCONE_ENCLAVE` - In CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata-Pods (leave it empty). 
+ - `$CVM_MODE` - if you want CVM mode, set it to `--cvm`. For SGX, leave it empty.
+ - `$SCONE_ENCLAVE` - in CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata Pods (leave it empty).
 
-Program `tplenv` asks the user if our current (default) configuration stored in `Values.yaml`.
+Program `tplenv` asks the user whether to keep the current (default) configuration stored in `Values.yaml`.
 The user can modify the configuration if needed by setting the following variable to `--force`.
 Replace the `--force` by `""` to only ask for variables that are not defined in the environment
-or the Values.yaml file. Note that the `Values.yaml` file has priority over the environment variables.
+or the `Values.yaml` file. Note that `Values.yaml` has priority over environment variables.
 If the user changes values, they are written to `Values.yaml`.
 
 Ensure that we ask the user to confirm or modify all environment variables:
@@ -55,7 +55,7 @@ Ensure that we ask the user to confirm or modify all environment variables:
 export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
 ```
 
-`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`:
+`tplenv` will now ask for all environment variables described in `environment-variables.md`:
 
 ```bash
 eval $(tplenv --file environment-variables.md --create-values-file  --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
@@ -96,19 +96,19 @@ ______________________________________________________________________
 
 ## 🔑 6. Add Docker Registry Secret to Kubernetes
 
-We assume that you need a pull secret to pull the native and the confidential container image. We first check if the pull secret is already set. If it is not set, we ask the user to input the necessary information to create the pull secret:
+We assume you need a pull secret to pull both the native and confidential container images. First, we check whether the pull secret is already set. If it is not, we ask the user for the information needed to create it:
 
 - `$REGISTRY` - the name of the registry. By default, this is `registry.scontain.com`.
 - `$REGISTRY_USER` - the login name of the user that pulls the container image.
-- `$REGISTRY_TOKEN` - the token to pull the secret. See <https://sconedocs.github.io/registry/> for how to create this token.
+- `$REGISTRY_TOKEN` - the token used to pull the image. See <https://sconedocs.github.io/registry/> for how to create this token.
 
-Note that `tplenv` stores this information in file `Values.yaml`. 
+Note that `tplenv` stores this information in `Values.yaml`.
 
 ```bash
 if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
-  echo "Secret ${IMAGE_PULL_SECRET_NAME} not exist - creating now."
+  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
   # ask user for the credentials for accessing the registry
   eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )
   kubectl create secret docker-registry scontain --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
