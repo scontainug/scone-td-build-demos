@@ -5,8 +5,8 @@ environment:
   CAS_NAME: cas
   DESTINATION_IMAGE_NAME: registry.scontain.com/workshop/configmap:protected
   SCONE_VERSION: 7.0.0-alpha.1
-  CVM_MODE: null
-  SCONE_ENCLAVE: null
+  CVM_MODE: false
+  SCONE_ENCLAVE: false
   REGISTRY: registry.scontain.com
   REGISTRY_TOKEN: ''
   REGISTRY_USER: ''

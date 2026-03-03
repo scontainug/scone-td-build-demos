@@ -9,6 +9,7 @@ spec:
   enforce: ["/usr/local/bin/folder-reader"]
   push_scone_image: true
   version: ${SCONE_VERSION}
+  cvm: ${CVM_MODE}
   manifest_env:
     - {name: SCONE_VERSION, value: "1"}
     - {name: SCONE_SYSLIBS, value: "1"}
@@ -35,6 +36,8 @@ spec:
     - {name: SCONE_HEAP, value: "2G"}
   permissive: true
   spol: true
+  cvm: ${CVM_MODE}
+  scone_enclave: ${SCONE_ENCLAVE}
   access_policy:
     read:
       - ANY

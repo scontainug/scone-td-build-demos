@@ -1,0 +1,12 @@
+[package]
+edition = "2024"
+name = "client-rust"
+version = "0.1.0"
+
+[dependencies]
+axum = "0.8.4"
+log = "0.4.27"
+pem = "3.0"
+reqwest = "0.12.19"
+tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
+x509-parser = "0.16"
