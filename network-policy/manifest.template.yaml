@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client
+  labels:
+    app: client
+spec:
+  selector:
+    matchLabels:
+      app: client
+  template:
+    metadata:
+      labels:
+        app: client
+    spec:
+      containers:
+        - name: client
+          image: ${CLIENT_IMAGE}
+          env:
+            - name: DB
+              value: "orthanc:9000"
+      imagePullSecrets:
+        - name: ${IMAGE_PULL_SECRET_NAME}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: barad-dur
+  labels:
+    app: client
+  annotations:
+    sconev1.networkshield/unprotected_ports: "3000"
+spec:
+  selector:
+    app: client
+  ports:
+    - name: main-port
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  labels:
+    app: server
+spec:
+  selector:
+    matchLabels:
+      app: server
+  template:
+    metadata:
+      labels:
+        app: server
+    spec:
+      containers:
+        - name: server
+          image: ${SERVER_IMAGE}
+          ports:
+            - name: http
+              containerPort: 9000
+              protocol: TCP
+      imagePullSecrets:
+        - name: ${IMAGE_PULL_SECRET_NAME}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orthanc
+  labels:
+    app: server
+spec:
+  selector:
+    app: server
+  ports:
+    - name: main-port
+      protocol: TCP
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: test-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: server
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: client
+      ports:
+        - protocol: TCP
+          port: 9000

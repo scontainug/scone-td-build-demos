@@ -1,0 +1,59 @@
+apiVersion: scone.cloud/v1
+kind: Register
+metadata:
+  name: flask-redis-demo
+spec:
+  protected_image: redis:7-alpine
+  unprotected_image: redis:7-alpine
+  destination_image: ${IMAGE_NAME}-redis-scone
+  enforce: ["/usr/local/bin/redis-server"]
+  push_scone_image: false
+  cvm: ${CVM_MODE}
+  manifest_env:
+    - {name: SCONE_VERSION, value: "1"}
+    - {name: SCONE_SYSLIBS, value: "1"}
+    - {name: SCONE_PRODUCTION, value: "0"}
+    - {name: SCONE_HEAP, value: "2G"}
+---
+apiVersion: scone.cloud/v1
+kind: Register
+metadata:
+  name: flask-redis-demo
+spec:
+  protected_image: ${IMAGE_NAME}
+  unprotected_image: ${IMAGE_NAME}
+  enforce: ["/usr/local/bin/python"]
+  push_scone_image: false
+  cvm: ${CVM_MODE}
+  manifest_env:
+    - {name: SCONE_VERSION, value: "1"}
+    - {name: SCONE_SYSLIBS, value: "1"}
+    - {name: SCONE_PRODUCTION, value: "0"}
+    - {name: SCONE_HEAP, value: "2G"}
+    - { name: SCONE_ALLOW_DLOPEN, value: "2" }
+---
+apiVersion: scone.cloud/v1
+kind: Apply
+metadata:
+  name: flask-redis-demo
+spec:
+  file:
+    - "${SCRIPT_DIR}/k8s/manifest.yaml"
+    - "${SCRIPT_DIR}/k8s/secret-flask-tls.yaml"
+    - "${SCRIPT_DIR}/k8s/secret-redis-tls.yaml"
+  output_manifest_file: "${SCRIPT_DIR}/manifest.prod.sanitized.yaml"
+  output_session_file: "${SCRIPT_DIR}/manifest.prod.session.yaml"
+  cas_address:
+    address: cas.default
+  session_env:
+    - {name: SCONE_VERSION, value: "1"}
+  manifest_env:
+    - {name: SCONE_VERSION, value: "1"}
+    - {name: SCONE_SYSLIBS, value: "1"}
+    - {name: SCONE_PRODUCTION, value: "0"}
+    - {name: SCONE_HEAP, value: "2G"}
+    - { name: SCONE_ALLOW_DLOPEN, value: "2" }
+  permissive: true
+  spol: true
+  cvm: ${CVM_MODE}
+  scone_enclave: ${SCONE_ENCLAVE}

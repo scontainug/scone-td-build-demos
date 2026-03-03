@@ -1,0 +1,12 @@
+environment:
+  IMAGE_NAME: registry.scontain.com/k8s-scone-images/network-policy-client:native
+  IMAGE_PULL_SECRET_NAME: sconeapps
+  CAS_NAMESPACE: default
+  CAS_NAME: cas
+  SCONE_VERSION: 7.0.0-alpha.1
+  CVM_MODE: false
+  SCONE_ENCLAVE: false
+  REGISTRY: registry.scontain.com
+  REGISTRY_TOKEN: ''
+  REGISTRY_USER: ''
+  SCRIPT_DIR: .

@@ -1,0 +1,10 @@
+[package]
+edition = "2024"
+name = "server-rust"
+version = "0.1.0"
+
+[dependencies]
+axum = "0.8.4"
+log = "0.4.27"
+rand = "0.9.1"
+tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
