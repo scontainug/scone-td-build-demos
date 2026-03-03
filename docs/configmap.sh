@@ -11,6 +11,7 @@ LINES="${LINES:-26}"
 ORANGE="${ORANGE:-\033[38;5;208m}"
 LILAC="${LILAC:-\033[38;5;141m}"
 RESET="${RESET:-\033[0m}"
+CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:-}"
 
 slow_type() {
   local text="$*"
@@ -74,7 +75,7 @@ printf '%s\n' '_________________________________________________________________
 printf '%s\n' ''
 printf '%s\n' '#### 3. Setting up the Environment Variables'
 printf '%s\n' ''
-printf '%s\n' 'First, we ensure we are in the correct directory. Assumption, we start at directory `scone-td-build-demos`.'
+printf '%s\n' 'First, we ensure we are in the correct directory. We assume we start in `scone-td-build-demos`.'
 printf '%s\n' ''
 printf '%s\n' ''
 printf "%b" "$RESET"
@@ -83,40 +84,26 @@ pe "$(cat <<'EOF'
 pushd configmap
 EOF
 )"
-pe "$(cat <<'EOF'
-# ensure that the following is not set
-EOF
-)"
-pe "$(cat <<'EOF'
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
-EOF
-)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'The default values of several environment variables are defined in file `Values.yaml`.'
-printf '%s\n' '`tplenv` asks you if all defaults are ok. It then sets the environment variables:'
+printf '%s\n' '`tplenv` asks whether all defaults are okay. It then sets the environment variables:'
 printf '%s\n' ''
 printf '%s\n' ' - `$DEMO_IMAGE` - name of the native container image to deploy the application,'
 printf '%s\n' ' - `$DESTINATION_IMAGE_NAME` - destination of the confidential container image'
-printf '%s\n' ' - `$IMAGE_PULL_SECRET_NAME` the name of the pull secret to pull this image (default is `sconeapps`).  For simplicity, we assume that we can use the same pull secret to run the native and the confidential workload. '
+printf '%s\n' ' - `$IMAGE_PULL_SECRET_NAME` - the name of the pull secret used to pull this image (default: `sconeapps`). For simplicity, we assume we can use the same pull secret for both the native and confidential workloads.'
 printf '%s\n' ' - `$SCONE_VERSION` - the SCONE version to use (7.0.0-alpha.1) '
 printf '%s\n' ' - `$CAS_NAMESPACE` - the CAS namespace to use (e.g., `default`)'
 printf '%s\n' ' - `$CAS_NAME` - The CAS name to use (e.g., `cas`) '
-printf '%s\n' ' - `$CVM_MODE` - If you want to have CVM mode, set to `--cvm`. For SGX, leave empty. '
-printf '%s\n' ' - `$SCONE_ENCLAVE` - In CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata-Pods (leave it empty). '
+printf '%s\n' ' - `$CVM_MODE` - if you want CVM mode, set it to `--cvm`. For SGX, leave it empty.'
+printf '%s\n' ' - `$SCONE_ENCLAVE` - in CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata Pods (leave it empty).'
 printf '%s\n' ''
-printf '%s\n' 'Program `tplenv` asks the user if our current (default) configuration stored in `Values.yaml`.'
-printf '%s\n' 'The user can modify the configuration if needed by setting the following variable to `--force`.'
-printf '%s\n' 'Replace the `--force` by `""` to only ask for variables that are not defined in the environment'
-printf '%s\n' 'or the Values.yaml file. Note that the `Values.yaml` file has priority over the environment variables.'
+printf '%s\n' 'Program `tplenv` asks the user whether to keep the current (default) configuration stored in `Values.yaml`.'
+printf '%s\n' 'Note that `Values.yaml` has priority over environment variables.'
 printf '%s\n' 'If the user changes values, they are written to `Values.yaml`.'
 printf '%s\n' ''
-printf '%s\n' 'Ensure that we ask the user to confirm or modify all environment variables:'
-printf '%s\n' ''
-printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
-printf '%s\n' ''
-printf '%s\n' '`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`:'
+printf '%s\n' '`tplenv` will now ask for all environment variables described in `environment-variables.md`:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -192,13 +179,13 @@ printf '%s\n' '_________________________________________________________________
 printf '%s\n' ''
 printf '%s\n' '## 🔑 6. Add Docker Registry Secret to Kubernetes'
 printf '%s\n' ''
-printf '%s\n' 'We assume that you need a pull secret to pull the native and the confidential container image. We first check if the pull secret is already set. If it is not set, we ask the user to input the necessary information to create the pull secret:'
+printf '%s\n' 'We assume you need a pull secret to pull both the native and confidential container images. First, we check whether the pull secret is already set. If it is not, we ask the user for the information needed to create it:'
 printf '%s\n' ''
 printf '%s\n' '- `$REGISTRY` - the name of the registry. By default, this is `registry.scontain.com`.'
 printf '%s\n' '- `$REGISTRY_USER` - the login name of the user that pulls the container image.'
-printf '%s\n' '- `$REGISTRY_TOKEN` - the token to pull the secret. See <https://sconedocs.github.io/registry/> for how to create this token.'
+printf '%s\n' '- `$REGISTRY_TOKEN` - the token used to pull the image. See <https://sconedocs.github.io/registry/> for how to create this token.'
 printf '%s\n' ''
-printf '%s\n' 'Note that `tplenv` stores this information in file `Values.yaml`. '
+printf '%s\n' 'Note that `tplenv` stores this information in `Values.yaml`.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -215,7 +202,7 @@ else
 EOF
 )"
 pe "$(cat <<'EOF'
-  echo "Secret ${IMAGE_PULL_SECRET_NAME} not exist - creating now."
+  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
 EOF
 )"
 pe "$(cat <<'EOF'

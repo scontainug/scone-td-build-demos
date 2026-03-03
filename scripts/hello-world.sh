@@ -5,6 +5,7 @@ set -euo pipefail
 VIOLET='\033[38;5;141m'
 ORANGE='\033[38;5;208m'
 RESET='\033[0m'
+CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:---force}"
 
 printf "${VIOLET}"
 printf '%s\n' '# 🛡️ SCONE: Hello World'
@@ -38,12 +39,10 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' '# Ensure we are in the correct directory. We assume we start in `scone-td-build-demos`.'
 printf '%s\n' 'pushd hello-world'
-printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""'
 printf "${RESET}"
 
 # Ensure we are in the correct directory. We assume we start in `scone-td-build-demos`.
 pushd hello-world
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -60,14 +59,8 @@ printf '%s\n' ' - `$CVM_MODE` - if you want CVM mode, set it to `--cvm`. For SGX
 printf '%s\n' ' - `$SCONE_ENCLAVE` - in CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata Pods (leave it empty).'
 printf '%s\n' ''
 printf '%s\n' 'Program `tplenv` asks the user whether to keep the current (default) configuration stored in `Values.yaml`.'
-printf '%s\n' 'The user can modify the configuration if needed by setting the following variable to `--force`.'
-printf '%s\n' 'Replace the `--force` by `""` to only ask for variables that are not defined in the environment'
-printf '%s\n' 'or the `Values.yaml` file. Note that `Values.yaml` has priority over environment variables.'
+printf '%s\n' 'Note that `Values.yaml` has priority over environment variables.'
 printf '%s\n' 'If the user changes values, they are written to `Values.yaml`.'
-printf '%s\n' ''
-printf '%s\n' 'Ensure that we ask the user to confirm or modify all environment variables:'
-printf '%s\n' ''
-printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
 printf '%s\n' ''
 printf '%s\n' '`tplenv` will now ask for all environment variables described in `environment-variables.md`:'
 printf '%s\n' ''

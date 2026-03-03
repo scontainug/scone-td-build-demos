@@ -68,7 +68,6 @@ We build a simple cloud-native `web-server` image. For this, we use Rust. Rust i
 ```bash
 # Ensure we are in the correct directory. We assume we start in `scone-td-build-demos`.
 pushd web-server
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
 ```
 
 The default values of several environment variables are defined in file `Values.yaml`.
@@ -84,16 +83,8 @@ The default values of several environment variables are defined in file `Values.
  - `$SCONE_ENCLAVE` - in CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata Pods (leave it empty).
 
 Program `tplenv` asks the user whether to keep the current (default) configuration stored in `Values.yaml`.
-The user can modify the configuration if needed by setting the following variable to `--force`.
-Replace the `--force` by `""` to only ask for variables that are not defined in the environment
-or the `Values.yaml` file. Note that `Values.yaml` has priority over environment variables.
+Note that `Values.yaml` has priority over environment variables.
 If the user changes values, they are written to `Values.yaml`.
-
-Ensure that we ask the user to confirm or modify all environment variables:
-
-```
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
-```
 
 `tplenv` will now ask for all environment variables described in `environment-variables.md`:
 

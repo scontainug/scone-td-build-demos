@@ -11,6 +11,7 @@ LINES="${LINES:-26}"
 ORANGE="${ORANGE:-\033[38;5;208m}"
 LILAC="${LILAC:-\033[38;5;141m}"
 RESET="${RESET:-\033[0m}"
+CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:-}"
 
 slow_type() {
   local text="$*"
@@ -70,52 +71,42 @@ printf '%s\n' 'Follow the [Setup environment](https://github.com/scontain/scone)
 printf '%s\n' ''
 printf '%s\n' '#### 3. Setting up the Environment Variables'
 printf '%s\n' ''
-printf '%s\n' 'We build a simple cloud-native `hello world` image. For that we use Rust. Rust is available as a container image `rust:latest` on Dockerhub. We define a `Dockerfile` that uses this Rust image to create a `hello world` image:'
+printf '%s\n' 'We build a simple cloud-native `hello world` image. For this, we use Rust. Rust is available as the container image `rust:latest` on Docker Hub. We define a `Dockerfile` that uses this image to create a `hello world` image:'
 printf '%s\n' ''
 printf '%s\n' '- it creates a new Rust crate using `cargo`'
 printf '%s\n' '- the new crate is actually defining a `hello world` program'
-printf '%s\n' '- we build this project and push it to a repository to which we have push rights:'
+printf '%s\n' '- we build this project and push it to a repository where we have push access:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-# Ensure we are in the correct directory. Assumption, we start at directory `scone-td-build-demos`
+# Ensure we are in the correct directory. We assume we start in `scone-td-build-demos`.
 EOF
 )"
 pe "$(cat <<'EOF'
 pushd hello-world
 EOF
 )"
-pe "$(cat <<'EOF'
-export CONFIRM_ALL_ENVIRONMENT_VARIABLES=""
-EOF
-)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'The default values of several environment variables are defined in file `Values.yaml`.'
-printf '%s\n' '`tplenv` asks you if all defaults are ok. It then sets the environment variables:'
+printf '%s\n' '`tplenv` asks whether all defaults are okay. It then sets the environment variables:'
 printf '%s\n' ''
 printf '%s\n' ' - `$IMAGE_NAME` - name of the native container image to deploy the `hello-world` application,'
 printf '%s\n' ' - `$DESTINATION_IMAGE_NAME` - destination of the confidential container image'
-printf '%s\n' ' - `$IMAGE_PULL_SECRET_NAME` the name of the pull secret to pull this image (default is `sconeapps`).  For simplicity, we assume that we can use the same pull secret to run the native and the confidential workload. '
+printf '%s\n' ' - `$IMAGE_PULL_SECRET_NAME` - the name of the pull secret used to pull this image (default: `sconeapps`). For simplicity, we assume we can use the same pull secret for both the native and confidential workloads.'
 printf '%s\n' ' - `$SCONE_VERSION` - the SCONE version to use (7.0.0-alpha.1 for now) '
 printf '%s\n' ' - `$CAS_NAMESPACE` - the CAS namespace to use (e.g., `default`)'
 printf '%s\n' ' - `$CAS_NAME` - The CAS name to use (e.g., `cas`) '
-printf '%s\n' ' - `$CVM_MODE` - If you want to have CVM mode, set to `--cvm`. For SGX, leave empty. '
-printf '%s\n' ' - `$SCONE_ENCLAVE` - In CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata-Pods (leave it empty). '
+printf '%s\n' ' - `$CVM_MODE` - if you want CVM mode, set it to `--cvm`. For SGX, leave it empty.'
+printf '%s\n' ' - `$SCONE_ENCLAVE` - in CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata Pods (leave it empty).'
 printf '%s\n' ''
-printf '%s\n' 'Program `tplenv` asks the user if our current (default) configuration stored in `Values.yaml`.'
-printf '%s\n' 'The user can modify the configuration if needed by setting the following variable to `--force`.'
-printf '%s\n' 'Replace the `--force` by `""` to only ask for variables that are not defined in the environment'
-printf '%s\n' 'or the Values.yaml file. Note that the `Values.yaml` file has priority over the environment variables.'
+printf '%s\n' 'Program `tplenv` asks the user whether to keep the current (default) configuration stored in `Values.yaml`.'
+printf '%s\n' 'Note that `Values.yaml` has priority over environment variables.'
 printf '%s\n' 'If the user changes values, they are written to `Values.yaml`.'
 printf '%s\n' ''
-printf '%s\n' 'Ensure that we ask the user to confirm or modify all environment variables:'
-printf '%s\n' ''
-printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
-printf '%s\n' ''
-printf '%s\n' '`tplenv` will now ask the user for all environment variables that are described in file `environment-variables.md`:'
+printf '%s\n' '`tplenv` will now ask for all environment variables described in `environment-variables.md`:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -160,7 +151,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '#### 4. Build and Register Image'
 printf '%s\n' ''
-printf '%s\n' 'Now, we create the native `hello-world` application using Rust. Note that we could create the `hello-world` program within the `Dockerfile` (see below) that we use to build the native container image. To simplify the customization of this example, we create the Rust files. '
+printf '%s\n' 'Now we create the native `hello-world` application using Rust. Note that we could create the `hello-world` program inside the `Dockerfile` (see below) used to build the native container image. To keep this example easy to customize, we create the Rust files directly.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -190,28 +181,28 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'If you have access rights to push to `$IMAGE_NAME`, then push the container image. If you use the default image name, you can use the pre-build container image (i.e., no need to push the image).'
+printf '%s\n' 'If you have permission to push to `$IMAGE_NAME`, push the container image. If you use the default image name, you can use the pre-built container image (that is, there is no need to push the image).'
 printf '%s\n' ''
 printf '%s\n' 'docker push $IMAGE_NAME'
 printf '%s\n' ''
 printf '%s\n' '## 5. Sconifying the Application'
 printf '%s\n' ''
-printf '%s\n' 'We need to identify the programs that need to run confidential. To do so, we identify all programs on the image that might run confidential. We can explicitly specify all binaries that need to be confidential using the following options to program `scone-td-build register`:'
+printf '%s\n' 'We need to identify the programs that must run confidentially. To do so, we identify all programs in the image that might run confidentially. We can explicitly specify all binaries that must be confidential by using the following options for `scone-td-build register`:'
 printf '%s\n' ''
 printf '%s\n' '-  `--enforce <ENFORCE>` '
-printf '%s\n' '          Set the enforce binary to ensure that these binaries in the protected image are executed confidentially in the destination image. To define multiple binaries, just use this flag multiple times'
+printf '%s\n' '          Set enforced binaries to ensure that these binaries in the protected image are executed confidentially in the destination image. To define multiple binaries, use this flag multiple times.'
 printf '%s\n' ''
 printf '%s\n' '- `--enforce-list <ENFORCE_LIST>`'
-printf '%s\n' '          Specify a file that contains a list of binary filenames in the protected image. All binaries in the list will run confidential in the destination image'
+printf '%s\n' '          Specify a file that contains a list of binary filenames in the protected image. All binaries in the list will run confidentially in the destination image.'
 printf '%s\n' ''
-printf '%s\n' 'Alternatively, we could assume that all binaries might run confidential. That might result in many programs being transformed.  To reduce the number of binaries that need to be transformed and to reduce the effort to specify all confidential binaries, we use the following approach:'
+printf '%s\n' 'Alternatively, we could assume that all binaries might run confidentially. That might result in many programs being transformed. To reduce the number of binaries that need to be transformed and the effort of specifying all confidential binaries, we use the following approach:'
 printf '%s\n' ''
 printf '%s\n' '- `scone-td-build register` first determines all programs of a base image: we call this image the  `unprotected-image`'
 printf '%s\n' '- `scone-td-build register` then determines all programs of the container image used by the cloud-native application:  we call this image the `protected-image`'
 printf '%s\n' ''
-printf '%s\n' 'We register a new image for a later manifest translation: the manifest is protected such that an admin of the Kubernetes cluster cannot modify or read the `ConfigMaps` and `Secrets` of an application.'
+printf '%s\n' 'We register a new image for later manifest translation: the manifest is protected so that a Kubernetes cluster admin cannot modify or read an application'\''s `ConfigMaps` and `Secrets`.'
 printf '%s\n' ''
-printf '%s\n' 'Our translation generates a new image that is the original image name extended by postfix `-scone` unless we define a new image name with option `--destination-image`:'
+printf '%s\n' 'Our translation generates a new image by appending the suffix `-scone` to the original image name, unless we define a new image name with `--destination-image`:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -222,17 +213,17 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'Note that `register` of images permits us to copy images into our own repository. In this way, we can decouple our application from changes in the upstream repository that contain the original container image (i.e., in our case, `$IMAGE_NAME`)'
+printf '%s\n' 'Registering images allows us to copy images into our own repository. This decouples our application from changes in the upstream repository that contains the original container image (in this case, `$IMAGE_NAME`).'
 printf '%s\n' ''
 printf '%s\n' '#### 6. Create a Pull Secret'
 printf '%s\n' ''
-printf '%s\n' 'We assume that you need a pull secret to pull the native and the confidential container image. We first check if the pull secret is already set. If it is not set, we ask the user to input the necessary information to create the pull secret:'
+printf '%s\n' 'We assume you need a pull secret to pull both the native and confidential container images. First, we check whether the pull secret is already set. If it is not, we ask the user for the information needed to create it:'
 printf '%s\n' ''
 printf '%s\n' '- `$REGISTRY` - the name of the registry. By default, this is `registry.scontain.com`.'
 printf '%s\n' '- `$REGISTRY_USER` - the login name of the user that pulls the container image.'
-printf '%s\n' '- `$REGISTRY_TOKEN` - the token to pull the secret. See <https://sconedocs.github.io/registry/> for how to create this token.'
+printf '%s\n' '- `$REGISTRY_TOKEN` - the token used to pull the image. See <https://sconedocs.github.io/registry/> for how to create this token.'
 printf '%s\n' ''
-printf '%s\n' 'Note that `tplenv` stores this information in file `Values.yaml`. '
+printf '%s\n' 'Note that `tplenv` stores this information in `Values.yaml`.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -249,7 +240,7 @@ else
 EOF
 )"
 pe "$(cat <<'EOF'
-  echo "Secret ${IMAGE_PULL_SECRET_NAME} not exist - creating now."
+  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -273,7 +264,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '#### 7. Convert the manifests'
 printf '%s\n' ''
-printf '%s\n' 'Next, we use the native Kubernetes manifests and transform them into *sanitized* manifests '
+printf '%s\n' 'Next, we use the native Kubernetes manifests and transform them into *sanitized* manifests.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -303,8 +294,7 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'We need to sleep a little before log output of job becomes available. Hence, we execute the'
-printf '%s\n' 'command within a retry wrapper `retry-spinner`:'
+printf '%s\n' 'We need to wait briefly before the job logs become available. Therefore, we execute the command within the `retry-spinner` retry wrapper:'
 printf '%s\n' ''
 printf '%s\n' 'Let'\''s see the output of the job'
 printf '%s\n' ''
@@ -336,8 +326,8 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '### Automation'
 printf '%s\n' ''
-printf '%s\n' 'You can automatically executing the steps of this  document by executing `./scripts/hello-world.sh`.  Note, that this will not ask for any user inputs: it will use the configuration in file `Values.yaml` (in directory `hello-world`).'
+printf '%s\n' 'You can execute the steps in this document automatically by running `./scripts/hello-world.sh`. Note that this will not ask for user input; it will use the configuration in `hello-world/Values.yaml`.'
 printf '%s\n' ''
-printf '%s\n' 'In case you update the commands within this document, you would need to run `/scripts/extract-all-scripts.sh` to re-generate `./scripts/hello-world.sh`.'
+printf '%s\n' 'If you update the commands in this document, run `./scripts/extract-all-scripts.sh` to regenerate `./scripts/hello-world.sh`.'
 printf "%b" "$RESET"
 

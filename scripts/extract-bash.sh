@@ -75,6 +75,7 @@ write_default_header() {
     echo "VIOLET='\\033[38;5;141m'"
     echo "ORANGE='\\033[38;5;208m'"
     echo "RESET='\\033[0m'"
+    echo 'CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:---force}"'
     echo
   } >>"$TMP_OUTPUT"
 }
@@ -94,6 +95,7 @@ LINES="${LINES:-26}"
 ORANGE="${ORANGE:-\033[38;5;208m}"
 LILAC="${LILAC:-\033[38;5;141m}"
 RESET="${RESET:-\033[0m}"
+CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:-}"
 
 slow_type() {
   local text="$*"
