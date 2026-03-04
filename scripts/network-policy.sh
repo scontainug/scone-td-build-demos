@@ -114,10 +114,10 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'kubectl apply -f "demo/examples/networkPolicy/manifest.prod.sanitized.yaml"'
+printf '%s\n' 'kubectl apply -f "manifest.prod.sanitized.yaml"'
 printf "${RESET}"
 
-kubectl apply -f "demo/examples/networkPolicy/manifest.prod.sanitized.yaml"
+kubectl apply -f "manifest.prod.sanitized.yaml"
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -135,7 +135,18 @@ printf "${ORANGE}"
 printf '%s\n' 'kubectl port-forward svc/barad-dur 3000 &'
 printf "${RESET}"
 
-kubectl port-forward svc/barad-dur 3000 &
+echo "Waiting for pods"
+kubectl wait --for=condition=ready pod -l app=client --timeout=180s
+
+sleep 30
+
+# ---------------------------------------------------------------------------
+# Test
+# ---------------------------------------------------------------------------
+echo "Port-forwarding client"
+kubectl port-forward svc/barad-dur 3000:3000 &
+PF_PID=$!
+sleep 3
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -147,7 +158,10 @@ printf "${ORANGE}"
 printf '%s\n' 'curl localhost:3000/db-query'
 printf "${RESET}"
 
-curl localhost:3000/db-query
+RESPONSE="$(curl -s localhost:3000/db-query || true)"
+kill "$PF_PID" 2>/dev/null || true
+
+echo "Response: $RESPONSE"
 
 printf "${VIOLET}"
 printf '%s\n' ''
