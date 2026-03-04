@@ -1,6 +1,6 @@
 # NetworkPolicy
 
-This guide shows how to build, deploy, and test the **NetworkPolicy demo** using `k8s-scone`. You will build client and server images, generate SCONE-protected images, apply the Kubernetes manifests, and verify that everything works as expected.
+This guide shows how to build, deploy, and test the **NetworkPolicy demo** using `scone-td-build`. You will build client and server images, generate SCONE-protected images, apply the Kubernetes manifests, and verify that everything works as expected.
 
 ______________________________________________________________________
 
@@ -41,7 +41,7 @@ docker push $CLIENT_IMAGE
 
 ### Generate SCONE images
 
-Create the SCONE configuration from the template and apply it using `k8s-scone`:
+Create the SCONE configuration from the template and apply it using `scone-td-build`:
 
 ```bash
 tplenv --file "./manifest.template.yaml" --output "./manifest.yaml"
@@ -77,9 +77,10 @@ ______________________________________________________________________
 Forward the server service port to your local machine:
 
 ```bash
-kubectl  wait --for=condition=Ready pod -l app="server" --timeout=240s
+kubectl  wait --for=condition=Ready pod -l app="server" --timeout=300s
+kubectl  wait --for=condition=Ready pod -l app="client" --timeout=300s
 # being ready does not mean that port is available
-sleep 20
+sleep 10
 
 kubectl port-forward svc/barad-dur 3000 &  echo $! > /tmp/pf-3000.pid
 ```
@@ -87,7 +88,8 @@ kubectl port-forward svc/barad-dur 3000 &  echo $! > /tmp/pf-3000.pid
 Send a request to the server:
 
 ```bash
-curl localhost:3000/db-query
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query 
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query 
 ```
 
 ### Expected Result
@@ -104,5 +106,5 @@ The request should return a **random 7-character password**, confirming that:
 kubectl delete -f manifest.prod.sanitized.yaml
 kill $(cat /tmp/pf-3000.pid) || true
 rm /tmp/pf-3000.pid
-popd
+cd -
 ```

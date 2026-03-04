@@ -53,7 +53,7 @@ stty cols "$COLUMNS" rows "$LINES"
 printf "%b" "$LILAC"
 printf '%s\n' '# NetworkPolicy'
 printf '%s\n' ''
-printf '%s\n' 'This guide shows how to build, deploy, and test the **NetworkPolicy demo** using `k8s-scone`. You will build client and server images, generate SCONE-protected images, apply the Kubernetes manifests, and verify that everything works as expected.'
+printf '%s\n' 'This guide shows how to build, deploy, and test the **NetworkPolicy demo** using `scone-td-build`. You will build client and server images, generate SCONE-protected images, apply the Kubernetes manifests, and verify that everything works as expected.'
 printf '%s\n' ''
 printf '%s\n' '______________________________________________________________________'
 printf '%s\n' ''
@@ -121,7 +121,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '### Generate SCONE images'
 printf '%s\n' ''
-printf '%s\n' 'Create the SCONE configuration from the template and apply it using `k8s-scone`:'
+printf '%s\n' 'Create the SCONE configuration from the template and apply it using `scone-td-build`:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -183,7 +183,11 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-kubectl  wait --for=condition=Ready pod -l app="server" --timeout=240s
+kubectl  wait --for=condition=Ready pod -l app="server" --timeout=300s
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl  wait --for=condition=Ready pod -l app="client" --timeout=300s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -191,7 +195,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-sleep 20
+sleep 10
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -210,7 +214,11 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-curl localhost:3000/db-query
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query 
+EOF
+)"
+pe "$(cat <<'EOF'
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query 
 EOF
 )"
 
@@ -241,7 +249,7 @@ rm /tmp/pf-3000.pid
 EOF
 )"
 pe "$(cat <<'EOF'
-popd
+cd -
 EOF
 )"
 

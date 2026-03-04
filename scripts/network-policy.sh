@@ -10,7 +10,7 @@ CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:---force}
 printf "${VIOLET}"
 printf '%s\n' '# NetworkPolicy'
 printf '%s\n' ''
-printf '%s\n' 'This guide shows how to build, deploy, and test the **NetworkPolicy demo** using `k8s-scone`. You will build client and server images, generate SCONE-protected images, apply the Kubernetes manifests, and verify that everything works as expected.'
+printf '%s\n' 'This guide shows how to build, deploy, and test the **NetworkPolicy demo** using `scone-td-build`. You will build client and server images, generate SCONE-protected images, apply the Kubernetes manifests, and verify that everything works as expected.'
 printf '%s\n' ''
 printf '%s\n' '______________________________________________________________________'
 printf '%s\n' ''
@@ -73,7 +73,7 @@ printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' '### Generate SCONE images'
 printf '%s\n' ''
-printf '%s\n' 'Create the SCONE configuration from the template and apply it using `k8s-scone`:'
+printf '%s\n' 'Create the SCONE configuration from the template and apply it using `scone-td-build`:'
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -132,33 +132,20 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'kubectl  wait --for=condition=Ready pod -l app="server" --timeout=240s'
+printf '%s\n' 'kubectl  wait --for=condition=Ready pod -l app="server" --timeout=300s'
+printf '%s\n' 'kubectl  wait --for=condition=Ready pod -l app="client" --timeout=300s'
 printf '%s\n' '# being ready does not mean that port is available'
-printf '%s\n' 'sleep 20'
+printf '%s\n' 'sleep 10'
 printf '%s\n' ''
 printf '%s\n' 'kubectl port-forward svc/barad-dur 3000 &  echo $! > /tmp/pf-3000.pid'
 printf "${RESET}"
 
-<<<<<<< HEAD
-echo "Waiting for pods"
-kubectl wait --for=condition=ready pod -l app=client --timeout=180s
-
-sleep 30
-
-# ---------------------------------------------------------------------------
-# Test
-# ---------------------------------------------------------------------------
-echo "Port-forwarding client"
-kubectl port-forward svc/barad-dur 3000:3000 &
-PF_PID=$!
-sleep 3
-=======
-kubectl  wait --for=condition=Ready pod -l app="server" --timeout=240s
+kubectl  wait --for=condition=Ready pod -l app="server" --timeout=300s
+kubectl  wait --for=condition=Ready pod -l app="client" --timeout=300s
 # being ready does not mean that port is available
-sleep 20
+sleep 10
 
 kubectl port-forward svc/barad-dur 3000 &  echo $! > /tmp/pf-3000.pid
->>>>>>> 5c78921 (feat: do not exit client in case it does not run with a network shield)
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -167,13 +154,12 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'curl localhost:3000/db-query'
+printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query '
+printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query '
 printf "${RESET}"
 
-RESPONSE="$(curl -s localhost:3000/db-query || true)"
-kill "$PF_PID" 2>/dev/null || true
-
-echo "Response: $RESPONSE"
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query 
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query 
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -193,11 +179,11 @@ printf "${ORANGE}"
 printf '%s\n' 'kubectl delete -f manifest.prod.sanitized.yaml'
 printf '%s\n' 'kill $(cat /tmp/pf-3000.pid) || true'
 printf '%s\n' 'rm /tmp/pf-3000.pid'
-printf '%s\n' 'popd'
+printf '%s\n' 'cd -'
 printf "${RESET}"
 
 kubectl delete -f manifest.prod.sanitized.yaml
 kill $(cat /tmp/pf-3000.pid) || true
 rm /tmp/pf-3000.pid
-popd
+cd -
 
