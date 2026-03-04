@@ -38,11 +38,11 @@ metadata:
   name: flask-redis-demo
 spec:
   file:
-    - "${SCRIPT_DIR}/k8s/manifest.yaml"
-    - "${SCRIPT_DIR}/k8s/secret-flask-tls.yaml"
-    - "${SCRIPT_DIR}/k8s/secret-redis-tls.yaml"
-  output_manifest_file: "${SCRIPT_DIR}/manifest.prod.sanitized.yaml"
-  output_session_file: "${SCRIPT_DIR}/manifest.prod.session.yaml"
+    - "k8s/manifest.yaml"
+    - "k8s/secret-flask-tls.yaml"
+    - "k8s/secret-redis-tls.yaml"
+  output_manifest_file: "manifest.prod.sanitized.yaml"
+  output_session_file: "manifest.prod.session.yaml"
   cas_address:
     address: cas.default
   session_env:

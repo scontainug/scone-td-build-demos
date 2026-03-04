@@ -7,3 +7,7 @@ manifest.yaml
 storage.json
 Values.yaml
 target
+flask-redis-demo.json
+manifest.prod.session.yaml
+manifest.prod.sanitized.yaml
+scone.yaml
