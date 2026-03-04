@@ -166,7 +166,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-kubectl apply -f "demo/examples/networkPolicy/manifest.prod.sanitized.yaml"
+kubectl apply -f "manifest.prod.sanitized.yaml"
 EOF
 )"
 
@@ -183,7 +183,23 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-kubectl port-forward svc/barad-dur 3000 &
+kubectl  wait --for=condition=Ready pod -l app="server" --timeout=240s
+EOF
+)"
+pe "$(cat <<'EOF'
+# being ready does not mean that port is available
+EOF
+)"
+pe "$(cat <<'EOF'
+sleep 20
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl port-forward svc/barad-dur 3000 &  echo $! > /tmp/pf-3000.pid
 EOF
 )"
 
@@ -207,5 +223,25 @@ printf '%s\n' ''
 printf '%s\n' '- The application is running correctly'
 printf '%s\n' '- The SCONE-protected images are working'
 printf '%s\n' '- NetworkPolicy rules allow the intended traffic'
+printf '%s\n' ''
+printf '%s\n' '9. **Uninstall the demo**'
+printf '%s\n' ''
 printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+kubectl delete -f manifest.prod.sanitized.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
+kill $(cat /tmp/pf-3000.pid) || true
+EOF
+)"
+pe "$(cat <<'EOF'
+rm /tmp/pf-3000.pid
+EOF
+)"
+pe "$(cat <<'EOF'
+popd
+EOF
+)"
 

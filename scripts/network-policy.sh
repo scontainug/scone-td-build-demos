@@ -132,9 +132,14 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'kubectl port-forward svc/barad-dur 3000 &'
+printf '%s\n' 'kubectl  wait --for=condition=Ready pod -l app="server" --timeout=240s'
+printf '%s\n' '# being ready does not mean that port is available'
+printf '%s\n' 'sleep 20'
+printf '%s\n' ''
+printf '%s\n' 'kubectl port-forward svc/barad-dur 3000 &  echo $! > /tmp/pf-3000.pid'
 printf "${RESET}"
 
+<<<<<<< HEAD
 echo "Waiting for pods"
 kubectl wait --for=condition=ready pod -l app=client --timeout=180s
 
@@ -147,6 +152,13 @@ echo "Port-forwarding client"
 kubectl port-forward svc/barad-dur 3000:3000 &
 PF_PID=$!
 sleep 3
+=======
+kubectl  wait --for=condition=Ready pod -l app="server" --timeout=240s
+# being ready does not mean that port is available
+sleep 20
+
+kubectl port-forward svc/barad-dur 3000 &  echo $! > /tmp/pf-3000.pid
+>>>>>>> 5c78921 (feat: do not exit client in case it does not run with a network shield)
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -172,5 +184,20 @@ printf '%s\n' ''
 printf '%s\n' '- The application is running correctly'
 printf '%s\n' '- The SCONE-protected images are working'
 printf '%s\n' '- NetworkPolicy rules allow the intended traffic'
+printf '%s\n' ''
+printf '%s\n' '9. **Uninstall the demo**'
+printf '%s\n' ''
 printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' 'kubectl delete -f manifest.prod.sanitized.yaml'
+printf '%s\n' 'kill $(cat /tmp/pf-3000.pid) || true'
+printf '%s\n' 'rm /tmp/pf-3000.pid'
+printf '%s\n' 'popd'
+printf "${RESET}"
+
+kubectl delete -f manifest.prod.sanitized.yaml
+kill $(cat /tmp/pf-3000.pid) || true
+rm /tmp/pf-3000.pid
+popd
 

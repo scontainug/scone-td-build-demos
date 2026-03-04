@@ -101,7 +101,7 @@ The request should return a **random 7-character password**, confirming that:
 9. **Uninstall the demo**
 
 ```bash
-kubectl delete -f manifest.cleaned.yaml
+kubectl delete -f manifest.prod.sanitized.yaml
 kill $(cat /tmp/pf-3000.pid) || true
 rm /tmp/pf-3000.pid
 popd

@@ -7,21 +7,23 @@ use x509_parser::x509::X509Version;
 
 #[tokio::main]
 async fn main() {
-    let identity = env::var("SCONE_NETWORK_SHIELD_CLIENT_client-server-9000_IDENTITY")
-        .expect("missing env variable");
-    println!("raw env: {identity:?}");
-    for pem in Pem::iter_from_buffer(&identity.clone().into_bytes()) {
-        let pem = pem.expect("Reading next PEM block failed");
-        if pem.label == "PRIVATE KEY" {
-            continue;
+    if let Ok(identity) = env::var("SCONE_NETWORK_SHIELD_CLIENT_client-server-3000_IDENTITY") {
+        
+        println!("raw env: {identity:?}");
+        for pem in Pem::iter_from_buffer(&identity.clone().into_bytes()) {
+            let pem = pem.expect("Reading next PEM block failed");
+            if pem.label == "PRIVATE KEY" {
+                continue;
+            }
+            let x509 = pem.parse_x509().expect("X.509: decoding DER failed");
+            assert_eq!(x509.tbs_certificate.version, X509Version::V3);
+            println!("cert extensions: {:?}", x509.tbs_certificate.extensions());
         }
-        let x509 = pem.parse_x509().expect("X.509: decoding DER failed");
-        assert_eq!(x509.tbs_certificate.version, X509Version::V3);
-        println!("cert extensions: {:?}", x509.tbs_certificate.extensions());
-    }
-
+    } else {
+        println!("no identity found in env");
+    }   
     // build our application with a single route
-    let server = env::var("DB").unwrap_or("localhost:9000".to_owned());
+    let server = env::var("DB").unwrap_or("localhost:3000".to_owned());
     let server = format!("http://{server}");
     println!("server is: {server}");
     let app = Router::new().route(
