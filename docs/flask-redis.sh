@@ -1,13 +1,56 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -Eeuo pipefail
 
-VIOLET='\033[38;5;141m'
-ORANGE='\033[38;5;208m'
-RESET='\033[0m'
-CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:---force}"
+TYPE_SPEED="${TYPE_SPEED:-25}"
+PAUSE_AFTER_CMD="${PAUSE_AFTER_CMD:-0.6}"
+SHELLRC="${SHELLRC:-/dev/null}"
+PROMPT="${PROMPT:-$'\[\e[1;32m\]demo\[\e[0m\]:\[\e[1;34m\]~\[\e[0m\]\$ '}"
+COLUMNS="${COLUMNS:-100}"
+LINES="${LINES:-26}"
+ORANGE="${ORANGE:-\033[38;5;208m}"
+LILAC="${LILAC:-\033[38;5;141m}"
+RESET="${RESET:-\033[0m}"
+CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:-}"
 
-printf "${VIOLET}"
+slow_type() {
+  local text="$*"
+  local delay
+  delay=$(awk "BEGIN { print 1 / $TYPE_SPEED }")
+  for ((i=0; i<${#text}; i++)); do
+    printf "%s" "${text:i:1}"
+    sleep "$delay"
+  done
+}
+
+pe() {
+  local cmd="$*"
+  printf "%b" "$ORANGE"
+  slow_type "$cmd"
+  printf "%b" "$RESET"
+  printf "\n"
+
+  if [[ -n "${PE_BUFFER:-}" ]]; then
+    PE_BUFFER+=$'\n'
+  fi
+  PE_BUFFER+="$cmd"
+
+  # Execute only when buffered lines form a complete shell command.
+  if bash -n <(printf '%s\n' "$PE_BUFFER") 2>/dev/null; then
+    eval "$PE_BUFFER"
+    PE_BUFFER=""
+  fi
+
+  sleep "$PAUSE_AFTER_CMD"
+}
+
+export LANG=C.UTF-8
+export LC_ALL=C.UTF-8
+export COLUMNS LINES
+export PS1="$PROMPT"
+stty cols "$COLUMNS" rows "$LINES"
+
+printf "%b" "$LILAC"
 printf '%s\n' '# flask-redis'
 printf '%s\n' ''
 printf '%s\n' 'A Flask REST API backed by a TLS-secured Redis instance, packaged for Kubernetes.'
@@ -47,37 +90,33 @@ printf '%s\n' '  -n, --namespace    Kubernetes namespace (default: flask-redis)'
 printf '%s\n' ''
 printf '%s\n' '#### Example'
 printf '%s\n' ''
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-printf '%s\n' 'chmod +x deploy.sh'
-printf '%s\n' './deploy.sh --image myregistry/flask-redis-api:latest'
-printf "${RESET}"
-
+pe "$(cat <<'EOF'
 chmod +x deploy.sh
+EOF
+)"
+pe "$(cat <<'EOF'
 ./deploy.sh --image myregistry/flask-redis-api:latest
+EOF
+)"
 
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'With custom paths:'
 printf '%s\n' ''
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-printf '%s\n' './deploy.sh \'
-printf '%s\n' '  --image myregistry/flask-redis-api:latest \'
-printf '%s\n' '  --certs ./my-certs \'
-printf '%s\n' '  --k8s ./k8s \'
-printf '%s\n' '  --namespace flask-redis'
-printf "${RESET}"
-
+pe "$(cat <<'EOF'
 ./deploy.sh \
   --image myregistry/flask-redis-api:latest \
   --certs ./my-certs \
   --k8s ./k8s \
   --namespace flask-redis
+EOF
+)"
 
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'The script will pause after generating the secret and manifest YAML files in `--k8s` so you can inspect them before anything is applied to the cluster. After the tests finish, all deployed resources are automatically removed.'
 printf '%s\n' ''
@@ -95,61 +134,94 @@ printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '#### 1. Generate TLS certificates'
 printf '%s\n' ''
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-printf '%s\n' 'mkdir -p certs'
-printf '%s\n' ''
-printf '%s\n' '# CA'
-printf '%s\n' 'openssl genrsa -out certs/redis-ca.key 4096'
-printf '%s\n' 'openssl req -x509 -new -nodes -key certs/redis-ca.key -sha256 -days 3650 \'
-printf '%s\n' '  -out certs/redis-ca.crt -subj "/CN=redis-ca"'
-printf '%s\n' ''
-printf '%s\n' '# Redis server cert'
-printf '%s\n' 'openssl genrsa -out certs/redis.key 2048'
-printf '%s\n' 'openssl req -new -key certs/redis.key -out certs/redis.csr -subj "/CN=redis"'
-printf '%s\n' 'openssl x509 -req -in certs/redis.csr -CA certs/redis-ca.crt -CAkey certs/redis-ca.key \'
-printf '%s\n' '  -CAcreateserial -out certs/redis.crt -days 365 -sha256'
-printf '%s\n' ''
-printf '%s\n' '# Flask server cert'
-printf '%s\n' 'openssl genrsa -out certs/flask.key 2048'
-printf '%s\n' 'openssl req -new -key certs/flask.key -out certs/flask.csr -subj "/CN=flask-api"'
-printf '%s\n' 'openssl x509 -req -in certs/flask.csr -CA certs/redis-ca.crt -CAkey certs/redis-ca.key \'
-printf '%s\n' '  -CAcreateserial -out certs/flask.crt -days 365 -sha256'
-printf '%s\n' ''
-printf '%s\n' '# Client cert (used by Flask to connect to Redis)'
-printf '%s\n' 'openssl genrsa -out certs/client.key 2048'
-printf '%s\n' 'openssl req -new -key certs/client.key -out certs/client.csr -subj "/CN=flask-client"'
-printf '%s\n' 'openssl x509 -req -in certs/client.csr -CA certs/redis-ca.crt -CAkey certs/redis-ca.key \'
-printf '%s\n' '  -CAcreateserial -out certs/client.crt -days 365 -sha256'
-printf "${RESET}"
-
+pe "$(cat <<'EOF'
 mkdir -p certs
+EOF
+)"
+pe "$(cat <<'EOF'
 
+EOF
+)"
+pe "$(cat <<'EOF'
 # CA
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl genrsa -out certs/redis-ca.key 4096
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl req -x509 -new -nodes -key certs/redis-ca.key -sha256 -days 3650 \
   -out certs/redis-ca.crt -subj "/CN=redis-ca"
+EOF
+)"
+pe "$(cat <<'EOF'
 
+EOF
+)"
+pe "$(cat <<'EOF'
 # Redis server cert
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl genrsa -out certs/redis.key 2048
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl req -new -key certs/redis.key -out certs/redis.csr -subj "/CN=redis"
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl x509 -req -in certs/redis.csr -CA certs/redis-ca.crt -CAkey certs/redis-ca.key \
   -CAcreateserial -out certs/redis.crt -days 365 -sha256
+EOF
+)"
+pe "$(cat <<'EOF'
 
+EOF
+)"
+pe "$(cat <<'EOF'
 # Flask server cert
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl genrsa -out certs/flask.key 2048
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl req -new -key certs/flask.key -out certs/flask.csr -subj "/CN=flask-api"
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl x509 -req -in certs/flask.csr -CA certs/redis-ca.crt -CAkey certs/redis-ca.key \
   -CAcreateserial -out certs/flask.crt -days 365 -sha256
+EOF
+)"
+pe "$(cat <<'EOF'
 
+EOF
+)"
+pe "$(cat <<'EOF'
 # Client cert (used by Flask to connect to Redis)
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl genrsa -out certs/client.key 2048
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl req -new -key certs/client.key -out certs/client.csr -subj "/CN=flask-client"
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl x509 -req -in certs/client.csr -CA certs/redis-ca.crt -CAkey certs/redis-ca.key \
   -CAcreateserial -out certs/client.crt -days 365 -sha256
+EOF
+)"
 
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '| File | Used by | Purpose |'
 printf '%s\n' '|---|---|---|'
@@ -162,31 +234,31 @@ printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '#### 2. Build and push the Docker image'
 printf '%s\n' ''
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-printf '%s\n' 'docker build -t <your-registry>/flask-redis-api:latest .'
-printf '%s\n' 'docker push <your-registry>/flask-redis-api:latest'
-printf "${RESET}"
-
+pe "$(cat <<'EOF'
 docker build -t <your-registry>/flask-redis-api:latest .
+EOF
+)"
+pe "$(cat <<'EOF'
 docker push <your-registry>/flask-redis-api:latest
+EOF
+)"
 
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '#### 3. Create the namespace'
 printf '%s\n' ''
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-printf '%s\n' 'kubectl create namespace flask-redis'
-printf "${RESET}"
-
+pe "$(cat <<'EOF'
 kubectl create namespace flask-redis
+EOF
+)"
 
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
@@ -194,33 +266,22 @@ printf '%s\n' '#### 4. Generate and inspect secret manifests'
 printf '%s\n' ''
 printf '%s\n' 'Generate the secret YAML files locally so you can inspect them before applying:'
 printf '%s\n' ''
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-printf '%s\n' 'kubectl create secret generic redis-tls \'
-printf '%s\n' '  --namespace flask-redis \'
-printf '%s\n' '  --from-file=redis.crt=certs/redis.crt \'
-printf '%s\n' '  --from-file=redis.key=certs/redis.key \'
-printf '%s\n' '  --from-file=redis-ca.crt=certs/redis-ca.crt \'
-printf '%s\n' '  --dry-run=client -o yaml > k8s/secret-redis-tls.yaml'
-printf '%s\n' ''
-printf '%s\n' 'kubectl create secret generic flask-tls \'
-printf '%s\n' '  --namespace flask-redis \'
-printf '%s\n' '  --from-file=flask.crt=certs/flask.crt \'
-printf '%s\n' '  --from-file=flask.key=certs/flask.key \'
-printf '%s\n' '  --from-file=client.crt=certs/client.crt \'
-printf '%s\n' '  --from-file=client.key=certs/client.key \'
-printf '%s\n' '  --from-file=redis-ca.crt=certs/redis-ca.crt \'
-printf '%s\n' '  --dry-run=client -o yaml > k8s/secret-flask-tls.yaml'
-printf "${RESET}"
-
+pe "$(cat <<'EOF'
 kubectl create secret generic redis-tls \
   --namespace flask-redis \
   --from-file=redis.crt=certs/redis.crt \
   --from-file=redis.key=certs/redis.key \
   --from-file=redis-ca.crt=certs/redis-ca.crt \
   --dry-run=client -o yaml > k8s/secret-redis-tls.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
 
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl create secret generic flask-tls \
   --namespace flask-redis \
   --from-file=flask.crt=certs/flask.crt \
@@ -229,86 +290,110 @@ kubectl create secret generic flask-tls \
   --from-file=client.key=certs/client.key \
   --from-file=redis-ca.crt=certs/redis-ca.crt \
   --dry-run=client -o yaml > k8s/secret-flask-tls.yaml
+EOF
+)"
 
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'Review the files in `k8s/`, then apply them:'
 printf '%s\n' ''
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-printf '%s\n' 'kubectl apply -f k8s/secret-redis-tls.yaml'
-printf '%s\n' 'kubectl apply -f k8s/secret-flask-tls.yaml'
-printf "${RESET}"
-
+pe "$(cat <<'EOF'
 kubectl apply -f k8s/secret-redis-tls.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl apply -f k8s/secret-flask-tls.yaml
+EOF
+)"
 
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '#### 5. Generate the manifest from the template'
 printf '%s\n' ''
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-printf '%s\n' 'export IMAGE_NAME=<your-registry>/flask-redis-api:latest'
-printf '%s\n' 'envsubst '\''$IMAGE_NAME'\'' < k8s/manifest.template.yaml > k8s/manifest.yaml'
-printf "${RESET}"
-
+pe "$(cat <<'EOF'
 export IMAGE_NAME=<your-registry>/flask-redis-api:latest
+EOF
+)"
+pe "$(cat <<'EOF'
 envsubst '$IMAGE_NAME' < k8s/manifest.template.yaml > k8s/manifest.yaml
+EOF
+)"
 
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'Review `k8s/manifest.yaml`, then apply it:'
 printf '%s\n' ''
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-printf '%s\n' 'kubectl apply -f k8s/manifest.yaml --namespace flask-redis'
-printf "${RESET}"
-
+pe "$(cat <<'EOF'
 kubectl apply -f k8s/manifest.yaml --namespace flask-redis
+EOF
+)"
 
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '#### 6. Verify the deployment'
 printf '%s\n' ''
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-printf '%s\n' '# Watch all resources come up'
-printf '%s\n' 'kubectl get all -n flask-redis'
-printf '%s\n' ''
-printf '%s\n' '# Wait for Redis'
-printf '%s\n' 'kubectl rollout status deployment/redis -n flask-redis --timeout=120s'
-printf '%s\n' ''
-printf '%s\n' '# Wait for Flask API'
-printf '%s\n' 'kubectl rollout status deployment/flask-api -n flask-redis --timeout=120s'
-printf '%s\n' ''
-printf '%s\n' '# Check logs'
-printf '%s\n' 'kubectl logs -n flask-redis -l app=flask-api --tail=50'
-printf '%s\n' 'kubectl logs -n flask-redis -l app=redis --tail=20'
-printf "${RESET}"
-
+pe "$(cat <<'EOF'
 # Watch all resources come up
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl get all -n flask-redis
+EOF
+)"
+pe "$(cat <<'EOF'
 
+EOF
+)"
+pe "$(cat <<'EOF'
 # Wait for Redis
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl rollout status deployment/redis -n flask-redis --timeout=120s
+EOF
+)"
+pe "$(cat <<'EOF'
 
+EOF
+)"
+pe "$(cat <<'EOF'
 # Wait for Flask API
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl rollout status deployment/flask-api -n flask-redis --timeout=120s
+EOF
+)"
+pe "$(cat <<'EOF'
 
+EOF
+)"
+pe "$(cat <<'EOF'
 # Check logs
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl logs -n flask-redis -l app=flask-api --tail=50
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl logs -n flask-redis -l app=redis --tail=20
+EOF
+)"
 
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
@@ -316,52 +401,38 @@ printf '%s\n' '#### 7. Test the API via port-forward'
 printf '%s\n' ''
 printf '%s\n' 'Open a port-forward to the Flask API pod:'
 printf '%s\n' ''
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-printf '%s\n' 'kubectl port-forward -n flask-redis \'
-printf '%s\n' '  $(kubectl get pod -n flask-redis -l app=flask-api -o jsonpath='\''{.items[0].metadata.name}'\'') \'
-printf '%s\n' '  14996:4996'
-printf "${RESET}"
-
+pe "$(cat <<'EOF'
 kubectl port-forward -n flask-redis \
   $(kubectl get pod -n flask-redis -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
   14996:4996
+EOF
+)"
 
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'Then in another terminal, send requests against `https://localhost:14996`:'
 printf '%s\n' ''
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-printf '%s\n' '# List all stored keys'
-printf '%s\n' 'curl -sk https://localhost:14996/keys'
-printf '%s\n' ''
-printf '%s\n' '# Create a client record'
-printf '%s\n' 'curl -sk -X POST https://localhost:14996/client/abc123 \'
-printf '%s\n' '  -F fname=John \'
-printf '%s\n' '  -F lname=Doe \'
-printf '%s\n' '  -F address="123 Main St" \'
-printf '%s\n' '  -F city="Springfield" \'
-printf '%s\n' '  -F iban="DE89370400440532013000" \'
-printf '%s\n' '  -F ssn="123-45-6789" \'
-printf '%s\n' '  -F email="john@example.com"'
-printf '%s\n' ''
-printf '%s\n' '# Retrieve a client'
-printf '%s\n' 'curl -sk https://localhost:14996/client/abc123'
-printf '%s\n' ''
-printf '%s\n' '# Get credit score'
-printf '%s\n' 'curl -sk https://localhost:14996/score/abc123'
-printf '%s\n' ''
-printf '%s\n' '# Memory dump (debug)'
-printf '%s\n' 'curl -sk https://localhost:14996/memory'
-printf "${RESET}"
-
+pe "$(cat <<'EOF'
 # List all stored keys
+EOF
+)"
+pe "$(cat <<'EOF'
 curl -sk https://localhost:14996/keys
+EOF
+)"
+pe "$(cat <<'EOF'
 
+EOF
+)"
+pe "$(cat <<'EOF'
 # Create a client record
+EOF
+)"
+pe "$(cat <<'EOF'
 curl -sk -X POST https://localhost:14996/client/abc123 \
   -F fname=John \
   -F lname=Doe \
@@ -370,17 +441,46 @@ curl -sk -X POST https://localhost:14996/client/abc123 \
   -F iban="DE89370400440532013000" \
   -F ssn="123-45-6789" \
   -F email="john@example.com"
+EOF
+)"
+pe "$(cat <<'EOF'
 
+EOF
+)"
+pe "$(cat <<'EOF'
 # Retrieve a client
+EOF
+)"
+pe "$(cat <<'EOF'
 curl -sk https://localhost:14996/client/abc123
+EOF
+)"
+pe "$(cat <<'EOF'
 
+EOF
+)"
+pe "$(cat <<'EOF'
 # Get credit score
+EOF
+)"
+pe "$(cat <<'EOF'
 curl -sk https://localhost:14996/score/abc123
+EOF
+)"
+pe "$(cat <<'EOF'
 
+EOF
+)"
+pe "$(cat <<'EOF'
 # Memory dump (debug)
+EOF
+)"
+pe "$(cat <<'EOF'
 curl -sk https://localhost:14996/memory
+EOF
+)"
 
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '> `-sk` skips TLS verification for the self-signed certificate.'
 printf '%s\n' ''
@@ -388,21 +488,26 @@ printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '#### 8. Cleanup'
 printf '%s\n' ''
-printf "${RESET}"
+printf "%b" "$RESET"
 
-printf "${ORANGE}"
-printf '%s\n' 'kubectl delete -f k8s/manifest.yaml --namespace flask-redis --ignore-not-found'
-printf '%s\n' 'kubectl delete secret redis-tls flask-tls --namespace flask-redis --ignore-not-found'
-printf '%s\n' 'kubectl delete namespace flask-redis --ignore-not-found'
-printf '%s\n' 'rm -f k8s/secret-redis-tls.yaml k8s/secret-flask-tls.yaml k8s/manifest.yaml'
-printf "${RESET}"
-
+pe "$(cat <<'EOF'
 kubectl delete -f k8s/manifest.yaml --namespace flask-redis --ignore-not-found
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl delete secret redis-tls flask-tls --namespace flask-redis --ignore-not-found
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl delete namespace flask-redis --ignore-not-found
+EOF
+)"
+pe "$(cat <<'EOF'
 rm -f k8s/secret-redis-tls.yaml k8s/secret-flask-tls.yaml k8s/manifest.yaml
+EOF
+)"
 
-printf "${VIOLET}"
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
@@ -417,5 +522,5 @@ printf '%s\n' '| `GET` | `/client/<client_id>` | Retrieve a client by ID |'
 printf '%s\n' '| `GET` | `/score/<client_id>` | Get the credit score for a client |'
 printf '%s\n' '| `GET` | `/keys` | List all stored client records |'
 printf '%s\n' '| `GET` | `/memory` | Dump process memory (debug only) |'
-printf "${RESET}"
+printf "%b" "$RESET"
 

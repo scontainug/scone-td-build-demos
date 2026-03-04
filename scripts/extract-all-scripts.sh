@@ -7,6 +7,8 @@ files=(
   "hello-world/README.md scripts/hello-world.sh"
   "configmap/README.md scripts/configmap.sh"
   "web-server/README.md scripts/web-server.sh"
+  "network-policy/README.md scripts/network-policy.sh"
+  "flask-redis/README.md scripts/flask-redis.sh"
 )
 
 generated_scripts=()

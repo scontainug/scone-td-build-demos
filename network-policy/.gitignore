@@ -1,0 +1,6 @@
+target
+manifest.prod.sanitized.yaml
+manifest.prod.session.yaml
+netshield.json
+scone.yaml
+manifest.yaml

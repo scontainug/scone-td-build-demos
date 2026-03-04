@@ -10,36 +10,33 @@ Make sure you have the following tools installed and configured:
 
 - Docker
 - Kubernetes cluster (with `kubectl` configured)
-- `k8s-scone` built locally
+- `scone-td-build` built locally
 - Access to a container registry where you can push images
-
-______________________________________________________________________
-
-## 🐳 Build Images
-
-First, define the names of the Docker images that will be used for the demo:
-
-```bash
-export DEMO_CLIENT_IMAGE=<CLIENT_IMAGE_NAME>
-export DEMO_SERVER_IMAGE=<SERVER_IMAGE_NAME>
-```
-
-> 💡 These should be full image names, including the registry (for example: `docker.io/youruser/demo-client`).
 
 Navigate to the NetworkPolicy demo directory:
 
 ```bash
-cd demo/examples/networkPolicy
+cd network-policy
 ```
+______________________________________________________________________
+
+## 🐳 Build Images
+
+First, define the names of the Docker images that will be used for the demo. Hence, `tplenv` will now ask for all environment variables described in `environment-variables.md`:
+
+```bash
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+```
+
 
 ### Build and push the base images
 
 ```bash
-docker build -t $DEMO_SERVER_IMAGE "server/"
-docker build -t $DEMO_CLIENT_IMAGE "client/"
+docker build -t $SERVER_IMAGE "server/"
+docker build -t $CLIENT_IMAGE "client/"
 
-docker push $DEMO_SERVER_IMAGE
-docker push $DEMO_CLIENT_IMAGE
+docker push $SERVER_IMAGE
+docker push $CLIENT_IMAGE
 ```
 
 ### Generate SCONE images
@@ -47,8 +44,9 @@ docker push $DEMO_CLIENT_IMAGE
 Create the SCONE configuration from the template and apply it using `k8s-scone`:
 
 ```bash
-envsubst < "./scone.template.yaml" > "./scone.yaml"
-./target/debug/k8s-scone from -y ./scone.yaml
+tplenv --file "./manifest.template.yaml" --output "./manifest.yaml"
+tplenv --file "./scone.template.yaml" --output "./scone.yaml"
+scone-td-build from -y ./scone.yaml
 ```
 
 This will generate SCONE-protected variants of both images.
@@ -56,8 +54,8 @@ This will generate SCONE-protected variants of both images.
 Push the generated SCONE images:
 
 ```bash
-docker push $DEMO_SERVER_IMAGE-scone
-docker push $DEMO_CLIENT_IMAGE-scone
+docker push $SERVER_IMAGE-scone
+docker push $CLIENT_IMAGE-scone
 ```
 
 ______________________________________________________________________
@@ -67,7 +65,7 @@ ______________________________________________________________________
 Deploy the application and NetworkPolicy configuration to the cluster:
 
 ```bash
-kubectl apply -f "demo/examples/networkPolicy/manifest.prod.sanitized.yaml"
+kubectl apply -f "manifest.prod.sanitized.yaml"
 ```
 
 Wait until all pods are running before continuing.
@@ -79,7 +77,11 @@ ______________________________________________________________________
 Forward the server service port to your local machine:
 
 ```bash
-kubectl port-forward svc/barad-dur 3000 &
+kubectl  wait --for=condition=Ready pod -l app="server" --timeout=240s
+# being ready does not mean that port is available
+sleep 20
+
+kubectl port-forward svc/barad-dur 3000 &  echo $! > /tmp/pf-3000.pid
 ```
 
 Send a request to the server:
@@ -95,3 +97,12 @@ The request should return a **random 7-character password**, confirming that:
 - The application is running correctly
 - The SCONE-protected images are working
 - NetworkPolicy rules allow the intended traffic
+
+9. **Uninstall the demo**
+
+```bash
+kubectl delete -f manifest.cleaned.yaml
+kill $(cat /tmp/pf-3000.pid) || true
+rm /tmp/pf-3000.pid
+popd
+```
