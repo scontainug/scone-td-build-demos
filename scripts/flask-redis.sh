@@ -221,35 +221,32 @@ printf '%s\n' '- `$REGISTRY` — the registry hostname (default: `registry.scont
 printf '%s\n' '- `$REGISTRY_USER` — your registry login name'
 printf '%s\n' '- `$REGISTRY_TOKEN` — your registry pull token (see [how to create a token](https://sconedocs.github.io/registry/))'
 printf '%s\n' ''
-printf "${RESET}"
-
-printf "${ORANGE}"
-printf '%s\n' 'eval $(tplenv --file registry.credentials.md --create-values-file --eval --force)'
-printf "${RESET}"
-
-eval $(tplenv --file registry.credentials.md --create-values-file --eval --force)
-
-printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Then create the pull secret in the namespace:'
+printf '%s\n' 'We create the pull secret in the namespace if it does not yet exist:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'kubectl create secret docker-registry -n ${NAMESPACE} "${IMAGE_PULL_SECRET_NAME}" \'
-printf '%s\n' '  --docker-server=$REGISTRY \'
-printf '%s\n' '  --docker-username=$REGISTRY_USER \'
-printf '%s\n' '  --docker-password=$REGISTRY_TOKEN'
+printf '%s\n' 'if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then'
+printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"'
+printf '%s\n' 'else'
+printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."'
+printf '%s\n' '  # ask user for the credentials for accessing the registry'
+printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )'
+printf '%s\n' '  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
+printf '%s\n' 'fi'
 printf "${RESET}"
 
-kubectl create secret docker-registry -n ${NAMESPACE} "${IMAGE_PULL_SECRET_NAME}" \
-  --docker-server=$REGISTRY \
-  --docker-username=$REGISTRY_USER \
-  --docker-password=$REGISTRY_TOKEN
+if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
+else
+  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
+  # ask user for the credentials for accessing the registry
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )
+  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+fi
 
 printf "${VIOLET}"
-printf '%s\n' ''
-printf '%s\n' 'If the secret already exists from a previous run, you can skip this step or append `--dry-run=client` to verify the values without recreating it.'
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
