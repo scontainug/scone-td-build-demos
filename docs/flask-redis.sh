@@ -219,14 +219,12 @@ printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '### Step 3. Create the namespace'
 printf '%s\n' ''
+printf '%s\n' 'We try to ensure that the namespace exists. This might fail when running in a container in the right namespace. Hence, we ignore for now.'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-export NAMESPACE=flask-redis
-EOF
-)"
-pe "$(cat <<'EOF'
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
 EOF
 )"
 
