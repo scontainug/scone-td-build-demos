@@ -101,7 +101,7 @@ else
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
   # ask user for the credentials for accessing the registry
   eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create secret docker-registry ${IMAGE_PULL_SECRET_NAME} --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 ```
 
@@ -125,12 +125,36 @@ ______________________________________________________________________
 
 ## 🧩 8. Prepare and Apply the SCONE Manifest
 
+First, attest the CAS to ensure we have the correct session encryption key:
+
+```bash
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S
+```
+
+Then register the image and apply the manifest transformation:
+
 ```bash
 scone-td-build from -y manifests/scone.yaml
+
+scone-td-build apply \
+    -f manifests/manifest.yaml \
+    -c ${CAS_NAME}.${CAS_NAMESPACE} \
+    -s ./configmap-example.json \
+    --output-manifest-file manifests/manifest.prod.sanitized.yaml \
+    --output-session-file manifests/manifest.prod.session.yaml \
+    --manifest-env SCONE_VERSION=1 \
+    --manifest-env SCONE_SYSLIBS=1 \
+    --manifest-env SCONE_PRODUCTION=0 \
+    --manifest-env SCONE_HEAP=2G \
+    --session-env SCONE_VERSION=1 \
+    --read-access ANY \
+    --spol \
+    -p
 ```
 
 This step:
 
+- Registers and pushes the protected container image
 - Generates a SCONE session
 - Attaches it to your manifest
 - Produces a new `manifests/manifest.prod.sanitized.yaml` with the necessary information to use the created session

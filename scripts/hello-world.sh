@@ -188,7 +188,7 @@ printf '%s\n' 'else'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."'
 printf '%s\n' '  # ask user for the credentials for accessing the registry'
 printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )'
-printf '%s\n' '  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
+printf '%s\n' '  kubectl create secret docker-registry ${IMAGE_PULL_SECRET_NAME} --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
@@ -198,7 +198,7 @@ else
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
   # ask user for the credentials for accessing the registry
   eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create secret docker-registry ${IMAGE_PULL_SECRET_NAME} --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 
 printf "${VIOLET}"

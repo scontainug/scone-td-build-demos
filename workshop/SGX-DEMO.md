@@ -143,6 +143,61 @@ To re-enter the toolbox shell later:
 kubectl exec -n scone-tools -it deploy/scone-toolbox -c scone-toolbox -- bash
 ```
 
+## Run the Demos
+
+From inside the toolbox shell (or any environment with `scone-td-build` and `tplenv` available), clone the demos repository and configure the image registries.
+
+### 5. Clone the Demos Repository
+
+```bash
+git clone https://github.com/scontain/scone-td-build-demos.git
+cd scone-td-build-demos
+git checkout laerson/workshop
+```
+
+### 6. Configure Image Registries
+
+Each demo has a `Values.yaml` file that controls where container images are pushed and pulled. The demos build container images and push them to a registry, so you need **write (push) access** to the registry you configure.
+
+Update the following files with your registry details:
+
+- `hello-world/Values.yaml`
+- `configmap/Values.yaml`
+- `web-server/Values.yaml`
+
+The key variables to configure are:
+
+| Variable | Description |
+|---|---|
+| `IMAGE_NAME` / `DEMO_IMAGE` | Native container image URL (built and pushed by the demo) |
+| `DESTINATION_IMAGE_NAME` | Protected (sconified) container image URL (pushed by `scone-td-build`) |
+| `IMAGE_PULL_SECRET_NAME` | Kubernetes pull secret name for the registry |
+| `REGISTRY` | Docker registry hostname (e.g., `ghcr.io`, `docker.io`) |
+| `REGISTRY_USER` | Your username for the registry |
+| `REGISTRY_TOKEN` | Your access token for the registry |
+
+For example, if you have push access to `ghcr.io/myuser/myrepo`, set:
+
+```yaml
+environment:
+  IMAGE_NAME: ghcr.io/myuser/myrepo/hello-world:native
+  DESTINATION_IMAGE_NAME: ghcr.io/myuser/myrepo/hello-world:protected
+  IMAGE_PULL_SECRET_NAME: my-registry-secret
+  REGISTRY: ghcr.io
+  REGISTRY_USER: myuser
+  REGISTRY_TOKEN: ghp_xxxxxxxxxxxx
+```
+
+> **Note:** `CAS_NAME`, `CAS_NAMESPACE`, `SCONE_VERSION`, `CVM_MODE`, and `SCONE_ENCLAVE` can typically be left at their defaults. For SGX clusters, leave `CVM_MODE` and `SCONE_ENCLAVE` as `null`.
+
+### 7. Run All Demos
+
+```bash
+./scripts/run-all-scripts.sh
+```
+
+This runs the hello-world, configmap, and web-server demos sequentially. Each demo builds a native application, sconifies it with `scone-td-build`, and deploys it to the cluster.
+
 ## Cleanup
 
 Delete the cluster when done:

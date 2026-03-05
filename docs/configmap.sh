@@ -214,7 +214,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create secret docker-registry ${IMAGE_PULL_SECRET_NAME} --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -267,10 +267,44 @@ printf '%s\n' '_________________________________________________________________
 printf '%s\n' ''
 printf '%s\n' '## 🧩 8. Prepare and Apply the SCONE Manifest'
 printf '%s\n' ''
+printf '%s\n' 'First, attest the CAS to ensure we have the correct session encryption key:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'Then register the image and apply the manifest transformation:'
+printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
 scone-td-build from -y manifests/scone.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+scone-td-build apply \
+    -f manifests/manifest.yaml \
+    -c ${CAS_NAME}.${CAS_NAMESPACE} \
+    -s ./configmap-example.json \
+    --output-manifest-file manifests/manifest.prod.sanitized.yaml \
+    --output-session-file manifests/manifest.prod.session.yaml \
+    --manifest-env SCONE_VERSION=1 \
+    --manifest-env SCONE_SYSLIBS=1 \
+    --manifest-env SCONE_PRODUCTION=0 \
+    --manifest-env SCONE_HEAP=2G \
+    --session-env SCONE_VERSION=1 \
+    --read-access ANY \
+    --spol \
+    -p
 EOF
 )"
 
@@ -278,6 +312,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'This step:'
 printf '%s\n' ''
+printf '%s\n' '- Registers and pushes the protected container image'
 printf '%s\n' '- Generates a SCONE session'
 printf '%s\n' '- Attaches it to your manifest'
 printf '%s\n' '- Produces a new `manifests/manifest.prod.sanitized.yaml` with the necessary information to use the created session'
