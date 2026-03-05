@@ -91,7 +91,6 @@ docker push ${IMAGE_NAME}
 ### Step 3. Create the namespace
 
 ```bash
-export NAMESPACE=flask-redis
 kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
 ```
 
