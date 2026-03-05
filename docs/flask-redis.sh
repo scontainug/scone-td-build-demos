@@ -54,68 +54,36 @@ printf "%b" "$LILAC"
 printf '%s\n' '# flask-redis'
 printf '%s\n' ''
 printf '%s\n' 'A Flask REST API backed by a TLS-secured Redis instance, packaged for Kubernetes.'
+printf '%s\n' 'This guide walks through deploying the **native** version first, running integration tests,'
+printf '%s\n' 'then building and deploying the **confidential** (SCONE) version and testing it again.'
 printf '%s\n' ''
 printf '%s\n' '## Project Structure'
 printf '%s\n' ''
 printf '%s\n' 'flask-redis/'
-printf '%s\n' '├── app.py                  # Flask application'
-printf '%s\n' '├── Dockerfile              # Flask image build'
-printf '%s\n' '├── requirements.txt        # Python dependencies'
-printf '%s\n' '├── deploy.sh               # Automated deploy + test script'
+printf '%s\n' '├── app.py                       # Flask application'
+printf '%s\n' '├── Dockerfile                   # Flask image build'
+printf '%s\n' '├── requirements.txt             # Python dependencies'
+printf '%s\n' '├── scone.template.yaml          # SCONE confidential build template'
+printf '%s\n' '├── environment-variables.md     # tplenv variable definitions'
+printf '%s\n' '├── registry.credentials.md      # tplenv registry credential definitions'
 printf '%s\n' '├── k8s/'
-printf '%s\n' '│   └── manifest.template.yaml  # Redis + Flask API deployment template'
+printf '%s\n' '│   └── manifest.template.yaml   # Redis + Flask API deployment template'
 printf '%s\n' '└── README.md'
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
-printf '%s\n' '## Deploy'
-printf '%s\n' ''
-printf '%s\n' 'There are two ways to deploy: run the **automated script** (recommended) or follow the **manual steps** below.'
-printf '%s\n' ''
-printf '%s\n' '---'
-printf '%s\n' ''
-printf '%s\n' '### Option A — Automated script'
-printf '%s\n' ''
-printf '%s\n' 'The `deploy.sh` script handles everything end-to-end: TLS cert generation, Docker build and push, Kubernetes secret and manifest generation, deployment, and integration tests via port-forward. It also cleans up all deployed resources when it finishes (or if something goes wrong).'
-printf '%s\n' ''
-printf '%s\n' '#### Usage'
-printf '%s\n' ''
-printf '%s\n' 'Usage: ./deploy.sh --image <IMAGE> [--certs <CERTS_DIR>] [--k8s <K8S_DIR>] [--namespace <NAMESPACE>]'
-printf '%s\n' ''
-printf '%s\n' 'Flags:'
-printf '%s\n' '  -i, --image        Image name (required), e.g. myregistry/flask-redis-api:latest'
-printf '%s\n' '  --certs            Path to certs directory (default: <script-dir>/certs)'
-printf '%s\n' '  --k8s              Path to k8s manifests directory (default: <script-dir>/k8s)'
-printf '%s\n' '  -n, --namespace    Kubernetes namespace (default: flask-redis)'
-printf '%s\n' ''
-printf '%s\n' '#### Example'
-printf '%s\n' ''
-printf '%s\n' 'chmod +x deploy.sh'
-printf '%s\n' './deploy.sh --image myregistry/flask-redis-api:latest'
-printf '%s\n' ''
-printf '%s\n' 'With custom paths:'
-printf '%s\n' ''
-printf '%s\n' './deploy.sh \'
-printf '%s\n' '  --image myregistry/flask-redis-api:latest \'
-printf '%s\n' '  --certs ./my-certs \'
-printf '%s\n' '  --k8s ./k8s \'
-printf '%s\n' '  --namespace flask-redis'
-printf '%s\n' ''
-printf '%s\n' 'The script will pause after generating the secret and manifest YAML files in `--k8s` so you can inspect them before anything is applied to the cluster. After the tests finish, all deployed resources are automatically removed.'
-printf '%s\n' ''
-printf '%s\n' '---'
-printf '%s\n' ''
-printf '%s\n' '### Option B — Manual steps'
-printf '%s\n' ''
-printf '%s\n' '#### Prerequisites'
+printf '%s\n' '## Prerequisites'
 printf '%s\n' ''
 printf '%s\n' '- `kubectl` configured for your cluster'
 printf '%s\n' '- `docker` with access to a registry your cluster can pull from'
-printf '%s\n' '- `openssl` and `tplenv` available in your shell'
+printf '%s\n' '- `openssl`, `tplenv`, and `envsubst` available in your shell'
+printf '%s\n' '- `scone-td-build` binary'
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
-printf '%s\n' '#### 1. Generate TLS certificates'
+printf '%s\n' '## Part 1 — Native Deployment'
+printf '%s\n' ''
+printf '%s\n' '### Step 1. Generate TLS certificates'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -219,20 +187,20 @@ printf '%s\n' '| `client.crt` / `client.key` | Flask | mTLS client cert for Redi
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
-printf '%s\n' '#### 2. Build and push the Docker image'
+printf '%s\n' '### Step 2. Collect environment variables and build the Docker image'
 printf '%s\n' ''
-printf '%s\n' 'First, let `tplenv` query all environment variables used by this example:'
+printf '%s\n' 'Let `tplenv` query all environment variables used by this example:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval --force --output /dev/null)
 EOF
 )"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'Then build and push the Docker image:'
+printf '%s\n' 'Then build and push the native Docker image:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -249,10 +217,14 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
-printf '%s\n' '#### 3. Create the namespace'
+printf '%s\n' '### Step 3. Create the namespace'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
+pe "$(cat <<'EOF'
+export NAMESPACE=flask-redis
+EOF
+)"
 pe "$(cat <<'EOF'
 kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
 EOF
@@ -262,7 +234,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
-printf '%s\n' '#### 4. Generate and inspect secret manifests'
+printf '%s\n' '### Step 4. Generate and inspect secret manifests'
 printf '%s\n' ''
 printf '%s\n' 'Generate the secret YAML files locally so you can inspect them before applying:'
 printf '%s\n' ''
@@ -312,55 +284,42 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
-printf '%s\n' '## 5. Add Docker Registry Secret to Kubernetes'
+printf '%s\n' '### Step 5. Add Docker Registry Secret to Kubernetes'
 printf '%s\n' ''
-printf '%s\n' 'We assume you need a pull secret to pull both the native and confidential container images. First, we check whether the pull secret is already set. If it is not, we ask the user for the information needed to create it:'
+printf '%s\n' 'A pull secret is needed to pull both the native and confidential container images. Use `tplenv` to supply the registry credentials — it will prompt for any values not yet present in `Values.yaml`:'
 printf '%s\n' ''
-printf '%s\n' '- `$REGISTRY` - the name of the registry. By default, this is `registry.scontain.com`.'
-printf '%s\n' '- `$REGISTRY_USER` - the login name of the user that pulls the container image.'
-printf '%s\n' '- `$REGISTRY_TOKEN` - the token used to pull the image. See <https://sconedocs.github.io/registry/> for how to create this token.'
-printf '%s\n' ''
-printf '%s\n' 'Note that `tplenv` stores this information in `Values.yaml`.'
+printf '%s\n' '- `$REGISTRY` — the registry hostname (default: `registry.scontain.com`)'
+printf '%s\n' '- `$REGISTRY_USER` — your registry login name'
+printf '%s\n' '- `$REGISTRY_TOKEN` — your registry pull token (see [how to create a token](https://sconedocs.github.io/registry/))'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" -n ${NAMESPACE} >/dev/null 2>&1; then
-EOF
-)"
-pe "$(cat <<'EOF'
-  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists in namespace ${NAMESPACE}"
-EOF
-)"
-pe "$(cat <<'EOF'
-else
-EOF
-)"
-pe "$(cat <<'EOF'
-  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist in namespace ${NAMESPACE} - creating now."
-EOF
-)"
-pe "$(cat <<'EOF'
-  # ask user for the credentials for accessing the registry
-EOF
-)"
-pe "$(cat <<'EOF'
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )
-EOF
-)"
-pe "$(cat <<'EOF'
-  kubectl create secret docker-registry -n ${NAMESPACE} "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
-EOF
-)"
-pe "$(cat <<'EOF'
-fi
+eval $(tplenv --file registry.credentials.md --create-values-file --eval --force)
 EOF
 )"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
+printf '%s\n' 'Then create the pull secret in the namespace:'
 printf '%s\n' ''
-printf '%s\n' '#### 6. Generate the manifest from the template'
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+kubectl create secret docker-registry -n ${NAMESPACE} "${IMAGE_PULL_SECRET_NAME}" \
+  --docker-server=$REGISTRY \
+  --docker-username=$REGISTRY_USER \
+  --docker-password=$REGISTRY_TOKEN
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'If the secret already exists from a previous run, you can skip this step or append `--dry-run=client` to verify the values without recreating it.'
+printf '%s\n' ''
+printf '%s\n' '---'
+printf '%s\n' ''
+printf '%s\n' '### Step 6. Generate the manifest from the template'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -384,7 +343,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
-printf '%s\n' '#### 7. Verify the deployment'
+printf '%s\n' '### Step 7. Verify the native deployment'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -441,7 +400,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
-printf '%s\n' '#### 8. Test the API via port-forward'
+printf '%s\n' '### Step 8. Test the native API via port-forward'
 printf '%s\n' ''
 printf '%s\n' 'Open a port-forward to the Flask API pod:'
 printf '%s\n' ''
@@ -450,13 +409,13 @@ printf "%b" "$RESET"
 pe "$(cat <<'EOF'
 kubectl port-forward -n ${NAMESPACE} \
   $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 &  echo $! > /tmp/pf-14996.pid
+  14996:4996 &
 EOF
 )"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'Then in another terminal, send requests against `https://localhost:14996`:'
+printf '%s\n' 'Then send requests against `https://localhost:14996`:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -477,7 +436,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10  -sk -X POST https://localhost:14996/client/abc123 \
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
   -F fname=John \
   -F lname=Doe \
   -F address="123 Main St" \
@@ -496,7 +455,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10  -sk https://localhost:14996/client/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -508,7 +467,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10  -sk https://localhost:14996/score/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -530,28 +489,239 @@ printf '%s\n' '> `-sk` skips TLS verification for the self-signed certificate.'
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
-printf '%s\n' '#### 9. Cleanup'
+printf '%s\n' '### Step 9. Tear down the native deployment'
+printf '%s\n' ''
+printf '%s\n' 'Remove the native workloads and secrets before switching to the confidential version:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-kubectl delete -f k8s/manifest.yaml --ignore-not-found
+kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
 EOF
 )"
 pe "$(cat <<'EOF'
 kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found
 EOF
 )"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' '---'
+printf '%s\n' ''
+printf '%s\n' '## Part 2 — Confidential Deployment (SCONE)'
+printf '%s\n' ''
+printf '%s\n' '### Step 10. Build the confidential (SCONE) images'
+printf '%s\n' ''
+printf '%s\n' 'Generate the SCONE config from its template, then run `scone-td-build` to produce hardened confidential images for both Redis and Flask, and push them to the registry:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
 pe "$(cat <<'EOF'
-rm -f k8s/secret-redis-tls.yaml k8s/secret-flask-tls.yaml k8s/manifest.yaml
+tplenv --file scone.template.yaml --create-values-file --output scone.yaml
 EOF
 )"
 pe "$(cat <<'EOF'
-kill $(cat /tmp/pf-14996.pid) || true
+scone-td-build from -y scone.yaml
 EOF
 )"
 pe "$(cat <<'EOF'
-rm /tmp/pf-14996.pid
+docker push "${IMAGE_NAME}-redis-scone"
+EOF
+)"
+pe "$(cat <<'EOF'
+docker push "${IMAGE_NAME}-scone"
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' '---'
+printf '%s\n' ''
+printf '%s\n' '### Step 11. Deploy the confidential version'
+printf '%s\n' ''
+printf '%s\n' 'Apply the production sanitized manifest that references the SCONE confidential images:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+kubectl apply -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' '---'
+printf '%s\n' ''
+printf '%s\n' '### Step 12. Verify the confidential deployment'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+# Watch all resources come up
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl get all -n ${NAMESPACE}
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Wait for Redis
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=300s
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Wait for Flask API
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=300s
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Check logs
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl logs -n ${NAMESPACE} -l app=redis --tail=20
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' '---'
+printf '%s\n' ''
+printf '%s\n' '### Step 13. Test the confidential API via port-forward'
+printf '%s\n' ''
+printf '%s\n' 'Open a port-forward to the confidential Flask API pod:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+kubectl port-forward -n ${NAMESPACE} \
+  $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
+  14996:4996 &
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'Then send requests against `https://localhost:14996`:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+# List all stored keys
+EOF
+)"
+pe "$(cat <<'EOF'
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Create a client record
+EOF
+)"
+pe "$(cat <<'EOF'
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
+  -F fname=John \
+  -F lname=Doe \
+  -F address="123 Main St" \
+  -F city="Springfield" \
+  -F iban="DE89370400440532013000" \
+  -F ssn="123-45-6789" \
+  -F email="john@example.com"
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Retrieve a client
+EOF
+)"
+pe "$(cat <<'EOF'
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Get credit score
+EOF
+)"
+pe "$(cat <<'EOF'
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Memory dump (debug)
+EOF
+)"
+pe "$(cat <<'EOF'
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' '> `-sk` skips TLS verification for the self-signed certificate.'
+printf '%s\n' ''
+printf '%s\n' '---'
+printf '%s\n' ''
+printf '%s\n' '## Cleanup'
+printf '%s\n' ''
+printf '%s\n' 'Remove all deployed resources when finished:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+# Stop the port-forward
+EOF
+)"
+pe "$(cat <<'EOF'
+kill %1
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+# Delete confidential manifest resources
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
 EOF
 )"
 

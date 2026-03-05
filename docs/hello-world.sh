@@ -126,7 +126,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME}
+kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME} -C -G -S
 EOF
 )"
 

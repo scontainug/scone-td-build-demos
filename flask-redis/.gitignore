@@ -1,1 +1,3 @@
 certs/
+flask-redis/k8s/secret-flask-tls.yaml
+flask-redis/k8s/secret-redis-tls.yaml

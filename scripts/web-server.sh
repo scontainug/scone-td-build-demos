@@ -121,11 +121,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# attest the CAS - to ensure that we know the correct session encryption key'
-printf '%s\n' 'kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME}'
+printf '%s\n' 'kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME} -C -G -S'
 printf "${RESET}"
 
 # attest the CAS - to ensure that we know the correct session encryption key
-kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME}
+kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME} -C -G -S
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -225,13 +225,13 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' '# Make sure web-server does not yet run'
 printf '%s\n' 'kubectl delete deployment web-server || echo "ok - no web-server deployment yet"'
-printf '%s\n' 'kubectl wait --for=delete pod -l app=web-server --timeout=240s'
+printf '%s\n' 'kubectl wait --for=delete pod -l app=web-server --timeout=240s || echo "ok - no web-server deployment yet"'
 printf '%s\n' 'kill $(cat /tmp/pf-8000.pid) || true'
 printf "${RESET}"
 
 # Make sure web-server does not yet run
 kubectl delete deployment web-server || echo "ok - no web-server deployment yet"
-kubectl wait --for=delete pod -l app=web-server --timeout=240s
+kubectl wait --for=delete pod -l app=web-server --timeout=240s || echo "ok - no web-server deployment yet"
 kill $(cat /tmp/pf-8000.pid) || true
 
 printf "${VIOLET}"

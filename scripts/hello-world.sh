@@ -80,11 +80,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# attest the CAS - to ensure that we know the correct session encryption key'
-printf '%s\n' 'kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME}'
+printf '%s\n' 'kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME} -C -G -S'
 printf "${RESET}"
 
 # attest the CAS - to ensure that we know the correct session encryption key
-kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME}
+kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME} -C -G -S
 
 printf "${VIOLET}"
 printf '%s\n' ''

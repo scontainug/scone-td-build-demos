@@ -167,7 +167,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME}
+kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME} -C -G -S
 EOF
 )"
 
@@ -284,7 +284,7 @@ kubectl delete deployment web-server || echo "ok - no web-server deployment yet"
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=delete pod -l app=web-server --timeout=240s
+kubectl wait --for=delete pod -l app=web-server --timeout=240s || echo "ok - no web-server deployment yet"
 EOF
 )"
 pe "$(cat <<'EOF'

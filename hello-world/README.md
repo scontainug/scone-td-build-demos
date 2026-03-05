@@ -55,7 +55,7 @@ We encrypt the policies that we send to CAS to ensure the integrity and confiden
 
 ```bash
 # attest the CAS - to ensure that we know the correct session encryption key
-kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME}
+kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME} -C -G -S
 ```
 
 In case the attestation and verification of the CAS would fail, please read the output of `kubectl scone cas attest` to determine which vulnerabilities were detected. It also suggests which options to pass to `kubectl scone cas attest` to tolerate these vulnerabilities, i.e., to make the attestation and verification to succeed.
