@@ -1,76 +1,38 @@
 # flask-redis
 
 A Flask REST API backed by a TLS-secured Redis instance, packaged for Kubernetes.
+This guide walks through deploying the **native** version first, running integration tests,
+then building and deploying the **confidential** (SCONE) version and testing it again.
 
 ## Project Structure
 
 ```
 flask-redis/
-├── app.py                  # Flask application
-├── Dockerfile              # Flask image build
-├── requirements.txt        # Python dependencies
-├── deploy.sh               # Automated deploy + test script
+├── app.py                       # Flask application
+├── Dockerfile                   # Flask image build
+├── requirements.txt             # Python dependencies
+├── scone.template.yaml          # SCONE confidential build template
+├── environment-variables.md     # tplenv variable definitions
+├── registry.credentials.md      # tplenv registry credential definitions
 ├── k8s/
-│   └── manifest.template.yaml  # Redis + Flask API deployment template
+│   └── manifest.template.yaml   # Redis + Flask API deployment template
 └── README.md
 ```
 
 ---
 
-## Deploy
-
-There are two ways to deploy: run the **automated script** (recommended) or follow the **manual steps** below.
-
----
-
-### Option A — Automated script
-
-The `deploy.sh` script handles everything end-to-end: TLS cert generation, Docker build and push, Kubernetes secret and manifest generation, deployment, and integration tests via port-forward. It also cleans up all deployed resources when it finishes (or if something goes wrong).
-
-#### Usage
-
-```
-Usage: ./deploy.sh --image <IMAGE> [--certs <CERTS_DIR>] [--k8s <K8S_DIR>] [--namespace <NAMESPACE>]
-
-Flags:
-  -i, --image        Image name (required), e.g. myregistry/flask-redis-api:latest
-  --certs            Path to certs directory (default: <script-dir>/certs)
-  --k8s              Path to k8s manifests directory (default: <script-dir>/k8s)
-  -n, --namespace    Kubernetes namespace (default: flask-redis)
-```
-
-#### Example
-
-```
-chmod +x deploy.sh
-./deploy.sh --image myregistry/flask-redis-api:latest
-```
-
-With custom paths:
-
-```
-./deploy.sh \
-  --image myregistry/flask-redis-api:latest \
-  --certs ./my-certs \
-  --k8s ./k8s \
-  --namespace flask-redis
-```
-
-The script will pause after generating the secret and manifest YAML files in `--k8s` so you can inspect them before anything is applied to the cluster. After the tests finish, all deployed resources are automatically removed.
-
----
-
-### Option B — Manual steps
-
-#### Prerequisites
+## Prerequisites
 
 - `kubectl` configured for your cluster
 - `docker` with access to a registry your cluster can pull from
-- `openssl` and `tplenv` available in your shell
+- `openssl`, `tplenv`, and `envsubst` available in your shell
+- `scone-td-build` binary
 
 ---
 
-#### 1. Generate TLS certificates
+## Part 1 — Native Deployment
+
+### Step 1. Generate TLS certificates
 
 ```bash
 cd flask-redis
@@ -109,15 +71,15 @@ openssl x509 -req -in certs/client.csr -CA certs/redis-ca.crt -CAkey certs/redis
 
 ---
 
-#### 2. Build and push the Docker image
+### Step 2. Collect environment variables and build the Docker image
 
-First, let `tplenv` query all environment variables used by this example:
+Let `tplenv` query all environment variables used by this example:
 
 ```bash
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval --force --output /dev/null)
 ```
 
-Then build and push the Docker image:
+Then build and push the native Docker image:
 
 ```bash
 docker build -t ${IMAGE_NAME} .
@@ -126,15 +88,16 @@ docker push ${IMAGE_NAME}
 
 ---
 
-#### 3. Create the namespace
+### Step 3. Create the namespace
 
 ```bash
+export NAMESPACE=flask-redis
 kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
 ```
 
 ---
 
-#### 4. Generate and inspect secret manifests
+### Step 4. Generate and inspect secret manifests
 
 Generate the secret YAML files locally so you can inspect them before applying:
 
@@ -165,29 +128,32 @@ kubectl apply -f k8s/secret-flask-tls.yaml
 
 ---
 
-## 5. Add Docker Registry Secret to Kubernetes
+### Step 5. Add Docker Registry Secret to Kubernetes
 
-We assume you need a pull secret to pull both the native and confidential container images. First, we check whether the pull secret is already set. If it is not, we ask the user for the information needed to create it:
+A pull secret is needed to pull both the native and confidential container images. Use `tplenv` to supply the registry credentials — it will prompt for any values not yet present in `Values.yaml`:
 
-- `$REGISTRY` - the name of the registry. By default, this is `registry.scontain.com`.
-- `$REGISTRY_USER` - the login name of the user that pulls the container image.
-- `$REGISTRY_TOKEN` - the token used to pull the image. See <https://sconedocs.github.io/registry/> for how to create this token.
-
-Note that `tplenv` stores this information in `Values.yaml`.
+- `$REGISTRY` — the registry hostname (default: `registry.scontain.com`)
+- `$REGISTRY_USER` — your registry login name
+- `$REGISTRY_TOKEN` — your registry pull token (see [how to create a token](https://sconedocs.github.io/registry/))
 
 ```bash
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" -n ${NAMESPACE} >/dev/null 2>&1; then
-  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists in namespace ${NAMESPACE}"
-else
-  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist in namespace ${NAMESPACE} - creating now."
-  # ask user for the credentials for accessing the registry
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )
-  kubectl create secret docker-registry -n ${NAMESPACE} "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
-fi
+eval $(tplenv --file registry.credentials.md --create-values-file --eval --force)
 ```
 
+Then create the pull secret in the namespace:
 
-#### 6. Generate the manifest from the template
+```bash
+kubectl create secret docker-registry -n ${NAMESPACE} "${IMAGE_PULL_SECRET_NAME}" \
+  --docker-server=$REGISTRY \
+  --docker-username=$REGISTRY_USER \
+  --docker-password=$REGISTRY_TOKEN
+```
+
+If the secret already exists from a previous run, you can skip this step or append `--dry-run=client` to verify the values without recreating it.
+
+---
+
+### Step 6. Generate the manifest from the template
 
 ```bash
 tplenv --file k8s/manifest.template.yaml --create-values-file --output k8s/manifest.yaml
@@ -201,7 +167,7 @@ kubectl apply -f k8s/manifest.yaml --namespace ${NAMESPACE}
 
 ---
 
-#### 7. Verify the deployment
+### Step 7. Verify the native deployment
 
 ```bash
 # Watch all resources come up
@@ -220,24 +186,24 @@ kubectl logs -n ${NAMESPACE} -l app=redis --tail=20
 
 ---
 
-#### 8. Test the API via port-forward
+### Step 8. Test the native API via port-forward
 
 Open a port-forward to the Flask API pod:
 
 ```bash
 kubectl port-forward -n ${NAMESPACE} \
   $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 &  echo $! > /tmp/pf-14996.pid
+  14996:4996 &
 ```
 
-Then in another terminal, send requests against `https://localhost:14996`:
+Then send requests against `https://localhost:14996`:
 
 ```bash
 # List all stored keys
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
 
 # Create a client record
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10  -sk -X POST https://localhost:14996/client/abc123 \
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
   -F fname=John \
   -F lname=Doe \
   -F address="123 Main St" \
@@ -247,10 +213,10 @@ curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time
   -F email="john@example.com"
 
 # Retrieve a client
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10  -sk https://localhost:14996/client/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
 
 # Get credit score
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10  -sk https://localhost:14996/score/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
 
 # Memory dump (debug)
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory
@@ -260,14 +226,111 @@ curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time
 
 ---
 
-#### 9. Cleanup
+### Step 9. Tear down the native deployment
+
+Remove the native workloads and secrets before switching to the confidential version:
 
 ```bash
-kubectl delete -f k8s/manifest.yaml --ignore-not-found
+kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
 kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found
-rm -f k8s/secret-redis-tls.yaml k8s/secret-flask-tls.yaml k8s/manifest.yaml
-kill $(cat /tmp/pf-14996.pid) || true
-rm /tmp/pf-14996.pid
+```
+
+---
+
+## Part 2 — Confidential Deployment (SCONE)
+
+### Step 10. Build the confidential (SCONE) images
+
+Generate the SCONE config from its template, then run `scone-td-build` to produce hardened confidential images for both Redis and Flask, and push them to the registry:
+
+```bash
+tplenv --file scone.template.yaml --create-values-file --output scone.yaml
+scone-td-build from -y scone.yaml
+docker push "${IMAGE_NAME}-redis-scone"
+docker push "${IMAGE_NAME}-scone"
+```
+
+---
+
+### Step 11. Deploy the confidential version
+
+Apply the production sanitized manifest that references the SCONE confidential images:
+
+```bash
+kubectl apply -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}
+```
+
+---
+
+### Step 12. Verify the confidential deployment
+
+```bash
+# Watch all resources come up
+kubectl get all -n ${NAMESPACE}
+
+# Wait for Redis
+kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=300s
+
+# Wait for Flask API
+kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=300s
+
+# Check logs
+kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
+kubectl logs -n ${NAMESPACE} -l app=redis --tail=20
+```
+
+---
+
+### Step 13. Test the confidential API via port-forward
+
+Open a port-forward to the confidential Flask API pod:
+
+```bash
+kubectl port-forward -n ${NAMESPACE} \
+  $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
+  14996:4996 &
+```
+
+Then send requests against `https://localhost:14996`:
+
+```bash
+# List all stored keys
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
+
+# Create a client record
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
+  -F fname=John \
+  -F lname=Doe \
+  -F address="123 Main St" \
+  -F city="Springfield" \
+  -F iban="DE89370400440532013000" \
+  -F ssn="123-45-6789" \
+  -F email="john@example.com"
+
+# Retrieve a client
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
+
+# Get credit score
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
+
+# Memory dump (debug)
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory
+```
+
+> `-sk` skips TLS verification for the self-signed certificate.
+
+---
+
+## Cleanup
+
+Remove all deployed resources when finished:
+
+```bash
+# Stop the port-forward
+kill %1
+
+# Delete confidential manifest resources
+kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
 ```
 
 ---
