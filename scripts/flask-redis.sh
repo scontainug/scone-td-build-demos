@@ -141,15 +141,15 @@ printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '### Step 3. Create the namespace'
 printf '%s\n' ''
+printf '%s\n' 'We try to ensure that the namespace exists. This might fail when running in a container in the right namespace. Hence, we ignore for now.'
+printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'export NAMESPACE=flask-redis'
-printf '%s\n' 'kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -'
+printf '%s\n' 'kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"'
 printf "${RESET}"
 
-export NAMESPACE=flask-redis
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
 
 printf "${VIOLET}"
 printf '%s\n' ''
