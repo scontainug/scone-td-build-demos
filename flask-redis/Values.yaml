@@ -9,4 +9,4 @@ environment:
   REGISTRY_TOKEN: ''
   REGISTRY_USER: ''
   IMAGE_NAME: registry.scontain.com/k8s-scone-images/flask-redis:latest
-  NAMESPACE: flask-redis
+  NAMESPACE: scone-tools
