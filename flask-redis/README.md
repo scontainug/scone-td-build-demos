@@ -137,20 +137,19 @@ A pull secret is needed to pull both the native and confidential container image
 - `$REGISTRY_USER` — your registry login name
 - `$REGISTRY_TOKEN` — your registry pull token (see [how to create a token](https://sconedocs.github.io/registry/))
 
-```bash
-eval $(tplenv --file registry.credentials.md --create-values-file --eval --force)
-```
 
-Then create the pull secret in the namespace:
+We create the pull secret in the namespace if it does not yet exist:
 
 ```bash
-kubectl create secret docker-registry -n ${NAMESPACE} "${IMAGE_PULL_SECRET_NAME}" \
-  --docker-server=$REGISTRY \
-  --docker-username=$REGISTRY_USER \
-  --docker-password=$REGISTRY_TOKEN
+if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
+else
+  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
+  # ask user for the credentials for accessing the registry
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )
+  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+fi
 ```
-
-If the secret already exists from a previous run, you can skip this step or append `--dry-run=client` to verify the values without recreating it.
 
 ---
 
