@@ -290,30 +290,45 @@ printf '%s\n' '- `$REGISTRY` — the registry hostname (default: `registry.scont
 printf '%s\n' '- `$REGISTRY_USER` — your registry login name'
 printf '%s\n' '- `$REGISTRY_TOKEN` — your registry pull token (see [how to create a token](https://sconedocs.github.io/registry/))'
 printf '%s\n' ''
-printf "%b" "$RESET"
-
-pe "$(cat <<'EOF'
-eval $(tplenv --file registry.credentials.md --create-values-file --eval --force)
-EOF
-)"
-
-printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'Then create the pull secret in the namespace:'
+printf '%s\n' 'We create the pull secret in the namespace if it does not yet exist:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-kubectl create secret docker-registry -n ${NAMESPACE} "${IMAGE_PULL_SECRET_NAME}" \
-  --docker-server=$REGISTRY \
-  --docker-username=$REGISTRY_USER \
-  --docker-password=$REGISTRY_TOKEN
+if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
+EOF
+)"
+pe "$(cat <<'EOF'
+  # ask user for the credentials for accessing the registry
+EOF
+)"
+pe "$(cat <<'EOF'
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )
+EOF
+)"
+pe "$(cat <<'EOF'
+  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
 EOF
 )"
 
 printf "%b" "$LILAC"
-printf '%s\n' ''
-printf '%s\n' 'If the secret already exists from a previous run, you can skip this step or append `--dry-run=client` to verify the values without recreating it.'
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
