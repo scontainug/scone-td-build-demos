@@ -82,6 +82,67 @@ kubectl get nodes
 
 All 3 nodes should show `Ready` status.
 
+## Deploy the SCONE Platform
+
+Clone the SCONE deployment repository and move into it:
+
+```bash
+git clone https://github.com/laerson/scone.git
+cd scone
+git checkout laerson/workshop
+```
+
+Set the required environment variables:
+
+```bash
+export SCONE_VERSION="7.0.0-alpha.1"
+export KUBECONFIG=../kubeconfig-sgx.yaml
+export SCONE_REGISTRY_USERNAME="<your-registry-username>"
+export SCONE_REGISTRY_ACCESS_TOKEN="<your-registry-access-token>"
+export SCONE_REGISTRY_EMAIL="<your-email>"
+export SGX_TOLERATIONS="--accept-configuration-needed --accept-group-out-of-date --accept-sw-hardening-needed --isvprodid 41316 --isvsvn 5 --mrsigner 195e5a6df987d6a515dd083750c1ea352283f8364d3ec9142b0d593988c6ed2d"
+```
+
+### 1. Install Prerequisites
+
+Install required tools (cosign, kubectl, yq, etc.) and the SCONE CLI:
+
+```bash
+./scripts/prerequisite_check.sh
+```
+
+### 2. Install the SCONE Operator
+
+Deploy the SCONE operator, LAS, and SGX plugin to the cluster:
+
+```bash
+./scripts/reconcile_scone_operator.sh
+```
+
+### 3. Install CAS
+
+Set the CAS name and namespace, then deploy the Certificate Authority Service:
+
+```bash
+export CAS="cas"
+export CAS_NAMESPACE="default"
+./scripts/install_cas.sh
+```
+
+### 4. Deploy the SCONE CLI Pod
+
+Deploy the SCONE toolbox pod to the cluster for running confidential computing transformations. The script will automatically drop you into the toolbox shell once the pod is ready:
+
+```bash
+./scripts/k8s_cli.sh
+```
+
+To re-enter the toolbox shell later:
+
+```bash
+kubectl exec -n scone-tools -it deploy/scone-toolbox -c scone-toolbox -- bash
+```
+
 ## Cleanup
 
 Delete the cluster when done:
