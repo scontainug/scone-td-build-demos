@@ -41,6 +41,7 @@ The default values of several environment variables are defined in file `Values.
  - `$CAS_NAME` - The CAS name to use (e.g., `cas`)
  - `$CVM_MODE` - set to `--cvm` for CVM mode.
  - `$SCONE_ENCLAVE` - set to `--scone-enclave` for confidential Kubernetes nodes.
+ - `$CAS_EXTERNAL_IP` - the external IP address of the CAS instance on the SGX cluster.
 
 Program `tplenv` asks the user whether to keep the current (default) configuration stored in `Values.yaml`.
 Note that `Values.yaml` has priority over environment variables.

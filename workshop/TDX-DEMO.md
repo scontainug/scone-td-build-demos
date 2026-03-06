@@ -189,7 +189,6 @@ Install the SCONE operator and all required tools:
 
 ```bash
 ./scripts/prerequisite_check.sh
-./scripts/reconcile_scone_operator.sh
 ```
 
 ### Connect to the SGX Cluster's CAS
