@@ -99,6 +99,17 @@ printf '%s\n' ' - `$CAS_NAME` - The CAS name to use (e.g., `cas`) '
 printf '%s\n' ' - `$CVM_MODE` - if you want CVM mode, set it to `--cvm`. For SGX, leave it empty.'
 printf '%s\n' ' - `$SCONE_ENCLAVE` - in CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata Pods (leave it empty).'
 printf '%s\n' ''
+printf '%s\n' 'To render the manifests, we need to define the signer key used to sign policies. We determine the local SIGNER first but you can overwrite manually.'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+export SIGNER="$(scone self show-session-signing-key)"
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
 printf '%s\n' 'Program `tplenv` asks the user whether to keep the current (default) configuration stored in `Values.yaml`.'
 printf '%s\n' 'Note that `Values.yaml` has priority over environment variables.'
 printf '%s\n' 'If the user changes values, they are written to `Values.yaml`.'
@@ -147,16 +158,6 @@ printf '%s\n' '_________________________________________________________________
 printf '%s\n' ''
 printf '%s\n' '## 🧩 Step 5: Render the Manifest'
 printf '%s\n' ''
-printf '%s\n' 'To render the manifests, we first need to define the signer key used to sign policies:'
-printf '%s\n' ''
-printf "%b" "$RESET"
-
-pe "$(cat <<'EOF'
-export SIGNER="$(scone self show-session-signing-key)"
-EOF
-)"
-
-printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'We then instantiate the manifest templates:'
 printf '%s\n' ''
@@ -239,11 +240,11 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-retry-spinner -- kubectl logs job/my-rust-app -c reader-1
+retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-1
 EOF
 )"
 pe "$(cat <<'EOF'
-retry-spinner -- kubectl logs job/my-rust-app -c reader-2
+retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-2
 EOF
 )"
 pe "$(cat <<'EOF'

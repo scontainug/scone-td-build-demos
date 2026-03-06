@@ -41,6 +41,12 @@ The default values of several environment variables are defined in file `Values.
  - `$CVM_MODE` - if you want CVM mode, set it to `--cvm`. For SGX, leave it empty.
  - `$SCONE_ENCLAVE` - in CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata Pods (leave it empty).
 
+To render the manifests, we need to define the signer key used to sign policies. We determine the local SIGNER first but you can overwrite manually.
+
+```bash
+export SIGNER="$(scone self show-session-signing-key)"
+```
+
 Program `tplenv` asks the user whether to keep the current (default) configuration stored in `Values.yaml`.
 Note that `Values.yaml` has priority over environment variables.
 If the user changes values, they are written to `Values.yaml`.
@@ -67,11 +73,6 @@ ______________________________________________________________________
 
 ## 🧩 Step 5: Render the Manifest
 
-To render the manifests, we first need to define the signer key used to sign policies:
-
-```bash
-export SIGNER="$(scone self show-session-signing-key)"
-```
 
 We then instantiate the manifest templates:
 
