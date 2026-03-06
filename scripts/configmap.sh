@@ -199,39 +199,9 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'scone-td-build from -y manifests/scone.yaml'
-printf '%s\n' ''
-printf '%s\n' 'scone-td-build apply \'
-printf '%s\n' '    -f manifests/manifest.yaml \'
-printf '%s\n' '    -c ${CAS_NAME}.${CAS_NAMESPACE} \'
-printf '%s\n' '    -s ./configmap-example.json \'
-printf '%s\n' '    --output-manifest-file manifests/manifest.prod.sanitized.yaml \'
-printf '%s\n' '    --output-session-file manifests/manifest.prod.session.yaml \'
-printf '%s\n' '    --manifest-env SCONE_VERSION=1 \'
-printf '%s\n' '    --manifest-env SCONE_SYSLIBS=1 \'
-printf '%s\n' '    --manifest-env SCONE_PRODUCTION=0 \'
-printf '%s\n' '    --manifest-env SCONE_HEAP=2G \'
-printf '%s\n' '    --session-env SCONE_VERSION=1 \'
-printf '%s\n' '    --read-access ANY \'
-printf '%s\n' '    --spol \'
-printf '%s\n' '    -p'
 printf "${RESET}"
 
 scone-td-build from -y manifests/scone.yaml
-
-scone-td-build apply \
-    -f manifests/manifest.yaml \
-    -c ${CAS_NAME}.${CAS_NAMESPACE} \
-    -s ./configmap-example.json \
-    --output-manifest-file manifests/manifest.prod.sanitized.yaml \
-    --output-session-file manifests/manifest.prod.session.yaml \
-    --manifest-env SCONE_VERSION=1 \
-    --manifest-env SCONE_SYSLIBS=1 \
-    --manifest-env SCONE_PRODUCTION=0 \
-    --manifest-env SCONE_HEAP=2G \
-    --session-env SCONE_VERSION=1 \
-    --read-access ANY \
-    --spol \
-    -p
 
 printf "${VIOLET}"
 printf '%s\n' ''

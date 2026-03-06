@@ -273,27 +273,6 @@ pe "$(cat <<'EOF'
 scone-td-build from -y manifests/scone.yaml
 EOF
 )"
-pe "$(cat <<'EOF'
-
-EOF
-)"
-pe "$(cat <<'EOF'
-scone-td-build apply \
-    -f manifests/manifest.yaml \
-    -c ${CAS_NAME}.${CAS_NAMESPACE} \
-    -s ./configmap-example.json \
-    --output-manifest-file manifests/manifest.prod.sanitized.yaml \
-    --output-session-file manifests/manifest.prod.session.yaml \
-    --manifest-env SCONE_VERSION=1 \
-    --manifest-env SCONE_SYSLIBS=1 \
-    --manifest-env SCONE_PRODUCTION=0 \
-    --manifest-env SCONE_HEAP=2G \
-    --session-env SCONE_VERSION=1 \
-    --read-access ANY \
-    --spol \
-    -p
-EOF
-)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
