@@ -50,7 +50,7 @@ spec:
       labels:
         app: my-rust-app
     spec:
-      restartPolicy: Never
+      restartPolicy: OnFailure
       containers:
         - name: reader-1
           image: ${DEMO_IMAGE}

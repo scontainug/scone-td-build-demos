@@ -11,7 +11,3 @@ environment:
   REGISTRY_TOKEN: ''
   REGISTRY_USER: ''
   SCRIPT_DIR: .
-  SIGNER: |-
-    -----BEGIN PUBLIC KEY-----
-    MCowBQYDK2VwAyEAvSRST+dhEaX42c6VkY1Sv+KVelnSup96M6TMHOlqcrg=
-    -----END PUBLIC KEY-----

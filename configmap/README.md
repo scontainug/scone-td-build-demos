@@ -112,8 +112,8 @@ ______________________________________________________________________
 ```bash
 kubectl apply -f manifests/manifest.yaml
 
-retry-spinner -- kubectl logs job/my-rust-app -c reader-1
-retry-spinner -- kubectl logs job/my-rust-app -c reader-2
+retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-1
+retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-2
 
 # Clean up native app
 kubectl delete -f manifests/manifest.yaml

@@ -11,3 +11,5 @@ This file defines the environment variables used to configure this `configmap` e
 7. If you want to use CVM mode, set `${CVM_MODE}` to `--cvm`. For SGX, leave it empty.
 8. In CVM mode, you can run on confidential Kubernetes nodes or Kata Pods.
    We recommend using confidential nodes and setting `${SCONE_ENCLAVE}` to `--scone-enclave`.
+9. We need to set the local signer: `${SIGNER}`
+   This should already be preset to `scone self show-session-signing-key`
