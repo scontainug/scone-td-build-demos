@@ -408,18 +408,45 @@ printf '%s\n' '## Part 2 — Confidential Deployment (SCONE)'
 printf '%s\n' ''
 printf '%s\n' '### Step 10. Build the confidential (SCONE) images'
 printf '%s\n' ''
+printf '%s\n' 'When transforming the binaries in the container image for confidential computing, we sign the binaries with a key. `scone-td-build` assumes, by default, that this key is stored in file `identity.pem`. We can generate this file as follows:'
+printf '%s\n' ''
+printf '%s\n' '- we first check if the file exists, and'
+printf '%s\n' '- if it does not exist, we create it with `openssl`'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' 'if [ ! -f identity.pem ]; then'
+printf '%s\n' '  echo "Generating identity.pem ..."'
+printf '%s\n' '  openssl genrsa -3 -out identity.pem 3072'
+printf '%s\n' 'else'
+printf '%s\n' '  echo "identity.pem already exists."'
+printf '%s\n' 'fi'
+printf "${RESET}"
+
+if [ ! -f identity.pem ]; then
+  echo "Generating identity.pem ..."
+  openssl genrsa -3 -out identity.pem 3072
+else
+  echo "identity.pem already exists."
+fi
+
+printf "${VIOLET}"
+printf '%s\n' ''
 printf '%s\n' 'Generate the SCONE config from its template, then run `scone-td-build` to produce hardened confidential images for both Redis and Flask, and push them to the registry:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'tplenv --file scone.template.yaml --create-values-file --output scone.yaml'
+printf '%s\n' 'rm flask-redis-demo.json || true'
 printf '%s\n' 'scone-td-build from -y scone.yaml'
 printf '%s\n' 'docker push "${IMAGE_NAME}-redis-scone"'
 printf '%s\n' 'docker push "${IMAGE_NAME}-scone"'
 printf "${RESET}"
 
 tplenv --file scone.template.yaml --create-values-file --output scone.yaml
+rm flask-redis-demo.json || true
 scone-td-build from -y scone.yaml
 docker push "${IMAGE_NAME}-redis-scone"
 docker push "${IMAGE_NAME}-scone"

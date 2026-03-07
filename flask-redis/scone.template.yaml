@@ -7,8 +7,9 @@ spec:
   unprotected_image: redis:7-alpine
   destination_image: ${IMAGE_NAME}-redis-scone
   enforce: ["/usr/local/bin/redis-server"]
-  push_scone_image: false
+  push_scone_image: true
   cvm: ${CVM_MODE}
+  version: ${SCONE_VERSION}
   manifest_env:
     - {name: SCONE_VERSION, value: "1"}
     - {name: SCONE_SYSLIBS, value: "1"}
@@ -23,14 +24,14 @@ spec:
   protected_image: ${IMAGE_NAME}
   unprotected_image: ${IMAGE_NAME}
   enforce: ["/usr/local/bin/python"]
-  push_scone_image: false
+  push_scone_image: true
   cvm: ${CVM_MODE}
   manifest_env:
     - {name: SCONE_VERSION, value: "1"}
     - {name: SCONE_SYSLIBS, value: "1"}
     - {name: SCONE_PRODUCTION, value: "0"}
     - {name: SCONE_HEAP, value: "2G"}
-    - { name: SCONE_ALLOW_DLOPEN, value: "2" }
+    - {name: SCONE_ALLOW_DLOPEN, value: "2" }
 ---
 apiVersion: scone.cloud/v1
 kind: Apply
@@ -52,7 +53,7 @@ spec:
     - {name: SCONE_SYSLIBS, value: "1"}
     - {name: SCONE_PRODUCTION, value: "0"}
     - {name: SCONE_HEAP, value: "2G"}
-    - { name: SCONE_ALLOW_DLOPEN, value: "2" }
+    - {name: SCONE_ALLOW_DLOPEN, value: "2" }
   permissive: true
   spol: true
   cvm: ${CVM_MODE}

@@ -1,3 +1,4 @@
 certs/
 k8s/secret-flask-tls.yaml
 k8s/secret-redis-tls.yaml
+identity.pem

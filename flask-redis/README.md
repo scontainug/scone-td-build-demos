@@ -241,10 +241,25 @@ kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-
 
 ### Step 10. Build the confidential (SCONE) images
 
+When transforming the binaries in the container image for confidential computing, we sign the binaries with a key. `scone-td-build` assumes, by default, that this key is stored in file `identity.pem`. We can generate this file as follows:
+
+- we first check if the file exists, and
+- if it does not exist, we create it with `openssl`
+
+```bash
+if [ ! -f identity.pem ]; then
+  echo "Generating identity.pem ..."
+  openssl genrsa -3 -out identity.pem 3072
+else
+  echo "identity.pem already exists."
+fi
+```
+
 Generate the SCONE config from its template, then run `scone-td-build` to produce hardened confidential images for both Redis and Flask, and push them to the registry:
 
 ```bash
 tplenv --file scone.template.yaml --create-values-file --output scone.yaml
+rm flask-redis-demo.json || true
 scone-td-build from -y scone.yaml
 docker push "${IMAGE_NAME}-redis-scone"
 docker push "${IMAGE_NAME}-scone"

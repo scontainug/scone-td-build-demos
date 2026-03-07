@@ -36,6 +36,7 @@ spec:
       containers:
         - name: redis
           image: redis:7-alpine
+          imagePullPolicy: Always
           command: ["redis-server", "/etc/redis/redis.conf"]
           ports:
             - containerPort: 6379
@@ -108,7 +109,7 @@ spec:
       containers:
         - name: flask-api
           image: ${IMAGE_NAME}
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 4996
           env:
