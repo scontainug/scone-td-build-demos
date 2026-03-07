@@ -57,6 +57,8 @@ printf '%s\n' 'A Flask REST API backed by a TLS-secured Redis instance, packaged
 printf '%s\n' 'This guide walks through deploying the **native** version first, running integration tests,'
 printf '%s\n' 'then building and deploying the **confidential** (SCONE) version and testing it again.'
 printf '%s\n' ''
+printf '%s\n' '![Flask Redis Demo](../docs/flask-redis.gif)'
+printf '%s\n' ''
 printf '%s\n' '## Project Structure'
 printf '%s\n' ''
 printf '%s\n' 'flask-redis/'
@@ -194,7 +196,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval --force --output /dev/null)
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
 EOF
 )"
 
@@ -316,7 +318,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -420,9 +422,13 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl port-forward -n ${NAMESPACE} \
   $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 &
+  14996:4996 & echo $! > /tmp/pf-14996.pid
 EOF
 )"
 
@@ -575,14 +581,6 @@ pe "$(cat <<'EOF'
 scone-td-build from -y scone.yaml
 EOF
 )"
-pe "$(cat <<'EOF'
-docker push "${IMAGE_NAME}-redis-scone"
-EOF
-)"
-pe "$(cat <<'EOF'
-docker push "${IMAGE_NAME}-scone"
-EOF
-)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -667,9 +665,13 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl port-forward -n ${NAMESPACE} \
   $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 &
+  14996:4996 & echo $! > /tmp/pf-14996.pid
 EOF
 )"
 
@@ -760,7 +762,11 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kill %1
+kill $(cat /tmp/pf-14996.pid) 2> /dev/null || true
+EOF
+)"
+pe "$(cat <<'EOF'
+rm /tmp/pf-14996.pid
 EOF
 )"
 pe "$(cat <<'EOF'

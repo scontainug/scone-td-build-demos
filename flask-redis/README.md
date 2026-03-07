@@ -78,7 +78,7 @@ openssl x509 -req -in certs/client.csr -CA certs/redis-ca.crt -CAkey certs/redis
 Let `tplenv` query all environment variables used by this example:
 
 ```bash
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval --force --output /dev/null)
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
 ```
 
 Then build and push the native Docker image:
@@ -148,7 +148,7 @@ if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
 else
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
   # ask user for the credentials for accessing the registry
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
   kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 ```
@@ -193,9 +193,10 @@ kubectl logs -n ${NAMESPACE} -l app=redis --tail=20
 Open a port-forward to the Flask API pod:
 
 ```bash
+kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
 kubectl port-forward -n ${NAMESPACE} \
   $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 &
+  14996:4996 & echo $! > /tmp/pf-14996.pid
 ```
 
 Then send requests against `https://localhost:14996`:
@@ -263,8 +264,6 @@ Generate the SCONE config from its template, then run `scone-td-build` to produc
 tplenv --file scone.template.yaml --create-values-file --output scone.yaml
 rm flask-redis-demo.json || true
 scone-td-build from -y scone.yaml
-docker push "${IMAGE_NAME}-redis-scone"
-docker push "${IMAGE_NAME}-scone"
 ```
 
 ---
@@ -303,9 +302,10 @@ kubectl logs -n ${NAMESPACE} -l app=redis --tail=20
 Open a port-forward to the confidential Flask API pod:
 
 ```bash
+kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
 kubectl port-forward -n ${NAMESPACE} \
   $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 &
+  14996:4996 & echo $! > /tmp/pf-14996.pid
 ```
 
 Then send requests against `https://localhost:14996`:
@@ -344,7 +344,8 @@ Remove all deployed resources when finished:
 
 ```bash
 # Stop the port-forward
-kill %1
+kill $(cat /tmp/pf-14996.pid) 2> /dev/null || true
+rm /tmp/pf-14996.pid
 
 # Delete confidential manifest resources
 kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found

@@ -14,6 +14,8 @@ printf '%s\n' 'A Flask REST API backed by a TLS-secured Redis instance, packaged
 printf '%s\n' 'This guide walks through deploying the **native** version first, running integration tests,'
 printf '%s\n' 'then building and deploying the **confidential** (SCONE) version and testing it again.'
 printf '%s\n' ''
+printf '%s\n' '![Flask Redis Demo](../docs/flask-redis.gif)'
+printf '%s\n' ''
 printf '%s\n' '## Project Structure'
 printf '%s\n' ''
 printf '%s\n' 'flask-redis/'
@@ -116,10 +118,10 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval --force --output /dev/null)'
+printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)'
 printf "${RESET}"
 
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval --force --output /dev/null)
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -232,7 +234,7 @@ printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"'
 printf '%s\n' 'else'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."'
 printf '%s\n' '  # ask user for the credentials for accessing the registry'
-printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )'
+printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )'
 printf '%s\n' '  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
 printf '%s\n' 'fi'
 printf "${RESET}"
@@ -242,7 +244,7 @@ if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
 else
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
   # ask user for the credentials for accessing the registry
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
   kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 
@@ -319,14 +321,16 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' 'kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true'
 printf '%s\n' 'kubectl port-forward -n ${NAMESPACE} \'
 printf '%s\n' '  $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='\''{.items[0].metadata.name}'\'') \'
-printf '%s\n' '  14996:4996 &'
+printf '%s\n' '  14996:4996 & echo $! > /tmp/pf-14996.pid'
 printf "${RESET}"
 
+kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
 kubectl port-forward -n ${NAMESPACE} \
   $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 &
+  14996:4996 & echo $! > /tmp/pf-14996.pid
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -441,15 +445,11 @@ printf "${ORANGE}"
 printf '%s\n' 'tplenv --file scone.template.yaml --create-values-file --output scone.yaml'
 printf '%s\n' 'rm flask-redis-demo.json || true'
 printf '%s\n' 'scone-td-build from -y scone.yaml'
-printf '%s\n' 'docker push "${IMAGE_NAME}-redis-scone"'
-printf '%s\n' 'docker push "${IMAGE_NAME}-scone"'
 printf "${RESET}"
 
 tplenv --file scone.template.yaml --create-values-file --output scone.yaml
 rm flask-redis-demo.json || true
 scone-td-build from -y scone.yaml
-docker push "${IMAGE_NAME}-redis-scone"
-docker push "${IMAGE_NAME}-scone"
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -514,14 +514,16 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' 'kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true'
 printf '%s\n' 'kubectl port-forward -n ${NAMESPACE} \'
 printf '%s\n' '  $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='\''{.items[0].metadata.name}'\'') \'
-printf '%s\n' '  14996:4996 &'
+printf '%s\n' '  14996:4996 & echo $! > /tmp/pf-14996.pid'
 printf "${RESET}"
 
+kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
 kubectl port-forward -n ${NAMESPACE} \
   $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 &
+  14996:4996 & echo $! > /tmp/pf-14996.pid
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -589,14 +591,16 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Stop the port-forward'
-printf '%s\n' 'kill %1'
+printf '%s\n' 'kill $(cat /tmp/pf-14996.pid) 2> /dev/null || true'
+printf '%s\n' 'rm /tmp/pf-14996.pid'
 printf '%s\n' ''
 printf '%s\n' '# Delete confidential manifest resources'
 printf '%s\n' 'kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found'
 printf "${RESET}"
 
 # Stop the port-forward
-kill %1
+kill $(cat /tmp/pf-14996.pid) 2> /dev/null || true
+rm /tmp/pf-14996.pid
 
 # Delete confidential manifest resources
 kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found

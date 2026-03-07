@@ -248,7 +248,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval --force )
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
 EOF
 )"
 pe "$(cat <<'EOF'
