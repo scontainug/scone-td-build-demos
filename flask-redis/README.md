@@ -95,7 +95,7 @@ docker push ${IMAGE_NAME}
 We try to ensure that the namespace exists. This might fail when running in a container in the right namespace. Hence, we ignore for now.
 
 ```bash
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
 ```
 
 ---
@@ -176,10 +176,10 @@ kubectl apply -f k8s/manifest.yaml --namespace ${NAMESPACE}
 kubectl get all -n ${NAMESPACE}
 
 # Wait for Redis
-kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=120s
+kubectl rollout status deployment/redis -n ${NAMESPACE}  --watch=true  --timeout=240s
 
 # Wait for Flask API
-kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=120s
+kubectl rollout status deployment/flask-api -n ${NAMESPACE} --watch=true  --timeout=240s
 
 # Check logs
 kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
@@ -194,9 +194,15 @@ Open a port-forward to the Flask API pod:
 
 ```bash
 kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
-kubectl port-forward -n ${NAMESPACE} \
-  $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 & echo $! > /tmp/pf-14996.pid
+POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \
+ | jq -r '.items[]
+    | select(.metadata.deletionTimestamp == null)
+    | select(.status.phase=="Running")
+    | select(any(.status.conditions[]; .type=="Ready" and .status=="True"))
+    | .metadata.name' | head -n1)
+
+
+kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid
 ```
 
 Then send requests against `https://localhost:14996`:
@@ -303,9 +309,14 @@ Open a port-forward to the confidential Flask API pod:
 
 ```bash
 kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
-kubectl port-forward -n ${NAMESPACE} \
-  $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 & echo $! > /tmp/pf-14996.pid
+POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \
+ | jq -r '.items[]
+    | select(.metadata.deletionTimestamp == null)
+    | select(.status.phase=="Running")
+    | select(any(.status.conditions[]; .type=="Ready" and .status=="True"))
+    | .metadata.name' | head -n1)
+
+kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid
 ```
 
 Then send requests against `https://localhost:14996`:

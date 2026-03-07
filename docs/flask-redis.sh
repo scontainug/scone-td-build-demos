@@ -226,7 +226,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
 EOF
 )"
 
@@ -379,7 +379,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=120s
+kubectl rollout status deployment/redis -n ${NAMESPACE}  --watch=true  --timeout=240s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -391,7 +391,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=120s
+kubectl rollout status deployment/flask-api -n ${NAMESPACE} --watch=true  --timeout=240s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -426,9 +426,36 @@ kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl port-forward -n ${NAMESPACE} \
-  $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 & echo $! > /tmp/pf-14996.pid
+POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \
+ | jq -r '.items[]
+EOF
+)"
+pe "$(cat <<'EOF'
+    | select(.metadata.deletionTimestamp == null)
+EOF
+)"
+pe "$(cat <<'EOF'
+    | select(.status.phase=="Running")
+EOF
+)"
+pe "$(cat <<'EOF'
+    | select(any(.status.conditions[]; .type=="Ready" and .status=="True"))
+EOF
+)"
+pe "$(cat <<'EOF'
+    | .metadata.name' | head -n1)
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid
 EOF
 )"
 
@@ -669,9 +696,32 @@ kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl port-forward -n ${NAMESPACE} \
-  $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 & echo $! > /tmp/pf-14996.pid
+POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \
+ | jq -r '.items[]
+EOF
+)"
+pe "$(cat <<'EOF'
+    | select(.metadata.deletionTimestamp == null)
+EOF
+)"
+pe "$(cat <<'EOF'
+    | select(.status.phase=="Running")
+EOF
+)"
+pe "$(cat <<'EOF'
+    | select(any(.status.conditions[]; .type=="Ready" and .status=="True"))
+EOF
+)"
+pe "$(cat <<'EOF'
+    | .metadata.name' | head -n1)
+EOF
+)"
+pe "$(cat <<'EOF'
+
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid
 EOF
 )"
 

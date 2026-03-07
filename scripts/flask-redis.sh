@@ -148,10 +148,10 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"'
+printf '%s\n' 'kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"'
 printf "${RESET}"
 
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -287,10 +287,10 @@ printf '%s\n' '# Watch all resources come up'
 printf '%s\n' 'kubectl get all -n ${NAMESPACE}'
 printf '%s\n' ''
 printf '%s\n' '# Wait for Redis'
-printf '%s\n' 'kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=120s'
+printf '%s\n' 'kubectl rollout status deployment/redis -n ${NAMESPACE}  --watch=true  --timeout=240s'
 printf '%s\n' ''
 printf '%s\n' '# Wait for Flask API'
-printf '%s\n' 'kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=120s'
+printf '%s\n' 'kubectl rollout status deployment/flask-api -n ${NAMESPACE} --watch=true  --timeout=240s'
 printf '%s\n' ''
 printf '%s\n' '# Check logs'
 printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50'
@@ -301,10 +301,10 @@ printf "${RESET}"
 kubectl get all -n ${NAMESPACE}
 
 # Wait for Redis
-kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=120s
+kubectl rollout status deployment/redis -n ${NAMESPACE}  --watch=true  --timeout=240s
 
 # Wait for Flask API
-kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=120s
+kubectl rollout status deployment/flask-api -n ${NAMESPACE} --watch=true  --timeout=240s
 
 # Check logs
 kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
@@ -322,15 +322,27 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true'
-printf '%s\n' 'kubectl port-forward -n ${NAMESPACE} \'
-printf '%s\n' '  $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='\''{.items[0].metadata.name}'\'') \'
-printf '%s\n' '  14996:4996 & echo $! > /tmp/pf-14996.pid'
+printf '%s\n' 'POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \'
+printf '%s\n' ' | jq -r '\''.items[]'
+printf '%s\n' '    | select(.metadata.deletionTimestamp == null)'
+printf '%s\n' '    | select(.status.phase=="Running")'
+printf '%s\n' '    | select(any(.status.conditions[]; .type=="Ready" and .status=="True"))'
+printf '%s\n' '    | .metadata.name'\'' | head -n1)'
+printf '%s\n' ''
+printf '%s\n' ''
+printf '%s\n' 'kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid'
 printf "${RESET}"
 
 kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
-kubectl port-forward -n ${NAMESPACE} \
-  $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 & echo $! > /tmp/pf-14996.pid
+POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \
+ | jq -r '.items[]
+    | select(.metadata.deletionTimestamp == null)
+    | select(.status.phase=="Running")
+    | select(any(.status.conditions[]; .type=="Ready" and .status=="True"))
+    | .metadata.name' | head -n1)
+
+
+kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -515,15 +527,25 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true'
-printf '%s\n' 'kubectl port-forward -n ${NAMESPACE} \'
-printf '%s\n' '  $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='\''{.items[0].metadata.name}'\'') \'
-printf '%s\n' '  14996:4996 & echo $! > /tmp/pf-14996.pid'
+printf '%s\n' 'POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \'
+printf '%s\n' ' | jq -r '\''.items[]'
+printf '%s\n' '    | select(.metadata.deletionTimestamp == null)'
+printf '%s\n' '    | select(.status.phase=="Running")'
+printf '%s\n' '    | select(any(.status.conditions[]; .type=="Ready" and .status=="True"))'
+printf '%s\n' '    | .metadata.name'\'' | head -n1)'
+printf '%s\n' ''
+printf '%s\n' 'kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid'
 printf "${RESET}"
 
 kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
-kubectl port-forward -n ${NAMESPACE} \
-  $(kubectl get pod -n ${NAMESPACE} -l app=flask-api -o jsonpath='{.items[0].metadata.name}') \
-  14996:4996 & echo $! > /tmp/pf-14996.pid
+POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \
+ | jq -r '.items[]
+    | select(.metadata.deletionTimestamp == null)
+    | select(.status.phase=="Running")
+    | select(any(.status.conditions[]; .type=="Ready" and .status=="True"))
+    | .metadata.name' | head -n1)
+
+kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid
 
 printf "${VIOLET}"
 printf '%s\n' ''
