@@ -11,8 +11,7 @@ printf "${VIOLET}"
 printf '%s\n' '# flask-redis'
 printf '%s\n' ''
 printf '%s\n' 'A Flask REST API backed by a TLS-secured Redis instance, packaged for Kubernetes.'
-printf '%s\n' 'This guide walks through deploying the **native** version first, running integration tests,'
-printf '%s\n' 'then building and deploying the **confidential** (SCONE) version and testing it again.'
+printf '%s\n' 'This guide walks through deploying the **native** version first, running integration tests, then building and deploying the **confidential** (SCONE) version and testing it again.'
 printf '%s\n' ''
 printf '%s\n' '![Flask Redis Demo](../docs/flask-redis.gif)'
 printf '%s\n' ''
@@ -143,7 +142,7 @@ printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '### Step 3. Create the namespace'
 printf '%s\n' ''
-printf '%s\n' 'We try to ensure that the namespace exists. This might fail when running in a container in the right namespace. Hence, we ignore for now.'
+printf '%s\n' 'We try to ensure the namespace exists. This may fail when running in a container that is already in the target namespace, so we ignore that failure.'
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -223,7 +222,6 @@ printf '%s\n' '- `$REGISTRY` — the registry hostname (default: `registry.scont
 printf '%s\n' '- `$REGISTRY_USER` — your registry login name'
 printf '%s\n' '- `$REGISTRY_TOKEN` — your registry pull token (see [how to create a token](https://sconedocs.github.io/registry/))'
 printf '%s\n' ''
-printf '%s\n' ''
 printf '%s\n' 'We create the pull secret in the namespace if it does not yet exist:'
 printf '%s\n' ''
 printf "${RESET}"
@@ -233,7 +231,6 @@ printf '%s\n' 'if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"'
 printf '%s\n' 'else'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."'
-printf '%s\n' '  # ask user for the credentials for accessing the registry'
 printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )'
 printf '%s\n' '  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
 printf '%s\n' 'fi'
@@ -243,7 +240,6 @@ if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
-  # ask user for the credentials for accessing the registry
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
   kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
@@ -449,7 +445,7 @@ fi
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Generate the SCONE config from its template, then run `scone-td-build` to produce hardened confidential images for both Redis and Flask, and push them to the registry:'
+printf '%s\n' 'Generate the SCONE config from its template, then run `scone-td-build` to produce hardened confidential images for both Redis and Flask and push them to the registry:'
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -607,7 +603,7 @@ printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '## Cleanup'
 printf '%s\n' ''
-printf '%s\n' 'Remove all deployed resources when finished:'
+printf '%s\n' 'Remove all deployed resources when you are finished:'
 printf '%s\n' ''
 printf "${RESET}"
 

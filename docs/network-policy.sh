@@ -53,22 +53,21 @@ stty cols "$COLUMNS" rows "$LINES"
 printf "%b" "$LILAC"
 printf '%s\n' '# NetworkPolicy'
 printf '%s\n' ''
-printf '%s\n' 'This guide shows how to build, deploy, and test the **NetworkPolicy demo** using `scone-td-build`. You will build client and server images, generate SCONE-protected images, apply the Kubernetes manifests, and verify that everything works as expected.'
+printf '%s\n' 'This guide explains how to build, deploy, and test the **NetworkPolicy demo** with `scone-td-build`. You will build client and server images, generate SCONE-protected images, apply Kubernetes manifests, and verify the result.'
 printf '%s\n' ''
 printf '%s\n' '![Network Policy Demo](../docs/network-policy.gif)'
 printf '%s\n' ''
-printf '%s\n' '______________________________________________________________________'
+printf '%s\n' '## 1. Prerequisites'
 printf '%s\n' ''
-printf '%s\n' '## 🧱 Normal Setup'
-printf '%s\n' ''
-printf '%s\n' 'Make sure you have the following tools installed and configured:'
+printf '%s\n' 'Make sure you have:'
 printf '%s\n' ''
 printf '%s\n' '- Docker'
-printf '%s\n' '- Kubernetes cluster (with `kubectl` configured)'
+printf '%s\n' '- A Kubernetes cluster with `kubectl` configured'
+printf '%s\n' '- `tplenv`'
 printf '%s\n' '- `scone-td-build` built locally'
 printf '%s\n' '- Access to a container registry where you can push images'
 printf '%s\n' ''
-printf '%s\n' 'Navigate to the NetworkPolicy demo directory:'
+printf '%s\n' 'Switch to the demo directory:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -78,23 +77,21 @@ EOF
 )"
 
 printf "%b" "$LILAC"
-printf '%s\n' '______________________________________________________________________'
 printf '%s\n' ''
-printf '%s\n' '## 🐳 Build Images'
+printf '%s\n' '## 2. Build Images'
 printf '%s\n' ''
-printf '%s\n' 'First, define the names of the Docker images that will be used for the demo. Hence, `tplenv` will now ask for all environment variables described in `environment-variables.md`:'
+printf '%s\n' 'Initialize environment variables from `environment-variables.md` using `tplenv`:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
 EOF
 )"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' ''
-printf '%s\n' '### Build and push the base images'
+printf '%s\n' 'Build and push native images:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -121,9 +118,9 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' '### Generate SCONE images'
+printf '%s\n' '## 3. Generate SCONE Images'
 printf '%s\n' ''
-printf '%s\n' 'Create the SCONE configuration from the template and apply it using `scone-td-build`:'
+printf '%s\n' 'Create SCONE config files from templates, then run `scone-td-build`:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -142,8 +139,6 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'This will generate SCONE-protected variants of both images.'
-printf '%s\n' ''
 printf '%s\n' 'Push the generated SCONE images:'
 printf '%s\n' ''
 printf "%b" "$RESET"
@@ -159,11 +154,7 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' '______________________________________________________________________'
-printf '%s\n' ''
-printf '%s\n' '## 🚀 Apply Kubernetes Manifests'
-printf '%s\n' ''
-printf '%s\n' 'Deploy the application and NetworkPolicy configuration to the cluster:'
+printf '%s\n' '## 4. Apply Kubernetes Manifests'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -176,24 +167,22 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'Wait until all pods are running before continuing.'
 printf '%s\n' ''
-printf '%s\n' '______________________________________________________________________'
+printf '%s\n' '## 5. Test the Setup'
 printf '%s\n' ''
-printf '%s\n' '## ✅ Test the Setup'
-printf '%s\n' ''
-printf '%s\n' 'Forward the server service port to your local machine:'
+printf '%s\n' 'Wait for pods and port-forward the server service:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-kubectl  wait --for=condition=Ready pod -l app="server" --timeout=300s
+kubectl wait --for=condition=Ready pod -l app="server" --timeout=300s
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl  wait --for=condition=Ready pod -l app="client" --timeout=300s
+kubectl wait --for=condition=Ready pod -l app="client" --timeout=300s
 EOF
 )"
 pe "$(cat <<'EOF'
-# being ready does not mean that port is available
+# A ready pod does not always mean the port is immediately available.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -205,36 +194,34 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl port-forward svc/barad-dur 3000 &  echo $! > /tmp/pf-3000.pid
+kubectl port-forward svc/barad-dur 3000 & echo $! > /tmp/pf-3000.pid
 EOF
 )"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'Send a request to the server:'
+printf '%s\n' 'Send requests:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query 
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query 
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query
 EOF
 )"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' '### Expected Result'
-printf '%s\n' ''
-printf '%s\n' 'The request should return a **random 7-character password**, confirming that:'
+printf '%s\n' 'Expected result: a random 7-character password, which confirms:'
 printf '%s\n' ''
 printf '%s\n' '- The application is running correctly'
-printf '%s\n' '- The SCONE-protected images are working'
-printf '%s\n' '- NetworkPolicy rules allow the intended traffic'
+printf '%s\n' '- SCONE-protected images are working'
+printf '%s\n' '- NetworkPolicy rules allow intended traffic'
 printf '%s\n' ''
-printf '%s\n' '9. **Uninstall the demo**'
+printf '%s\n' '## 6. Uninstall the Demo'
 printf '%s\n' ''
 printf "%b" "$RESET"
 

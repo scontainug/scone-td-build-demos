@@ -1,37 +1,34 @@
 # NetworkPolicy
 
-This guide shows how to build, deploy, and test the **NetworkPolicy demo** using `scone-td-build`. You will build client and server images, generate SCONE-protected images, apply the Kubernetes manifests, and verify that everything works as expected.
+This guide explains how to build, deploy, and test the **NetworkPolicy demo** with `scone-td-build`. You will build client and server images, generate SCONE-protected images, apply Kubernetes manifests, and verify the result.
 
 ![Network Policy Demo](../docs/network-policy.gif)
 
-______________________________________________________________________
+## 1. Prerequisites
 
-## 🧱 Normal Setup
-
-Make sure you have the following tools installed and configured:
+Make sure you have:
 
 - Docker
-- Kubernetes cluster (with `kubectl` configured)
+- A Kubernetes cluster with `kubectl` configured
+- `tplenv`
 - `scone-td-build` built locally
 - Access to a container registry where you can push images
 
-Navigate to the NetworkPolicy demo directory:
+Switch to the demo directory:
 
 ```bash
 cd network-policy
 ```
-______________________________________________________________________
 
-## 🐳 Build Images
+## 2. Build Images
 
-First, define the names of the Docker images that will be used for the demo. Hence, `tplenv` will now ask for all environment variables described in `environment-variables.md`:
+Initialize environment variables from `environment-variables.md` using `tplenv`:
 
 ```bash
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
 ```
 
-
-### Build and push the base images
+Build and push native images:
 
 ```bash
 docker build -t $SERVER_IMAGE "server/"
@@ -41,17 +38,15 @@ docker push $SERVER_IMAGE
 docker push $CLIENT_IMAGE
 ```
 
-### Generate SCONE images
+## 3. Generate SCONE Images
 
-Create the SCONE configuration from the template and apply it using `scone-td-build`:
+Create SCONE config files from templates, then run `scone-td-build`:
 
 ```bash
 tplenv --file "./manifest.template.yaml" --output "./manifest.yaml"
 tplenv --file "./scone.template.yaml" --output "./scone.yaml"
 scone-td-build from -y ./scone.yaml
 ```
-
-This will generate SCONE-protected variants of both images.
 
 Push the generated SCONE images:
 
@@ -60,11 +55,7 @@ docker push $SERVER_IMAGE-scone
 docker push $CLIENT_IMAGE-scone
 ```
 
-______________________________________________________________________
-
-## 🚀 Apply Kubernetes Manifests
-
-Deploy the application and NetworkPolicy configuration to the cluster:
+## 4. Apply Kubernetes Manifests
 
 ```bash
 kubectl apply -f "manifest.prod.sanitized.yaml"
@@ -72,37 +63,33 @@ kubectl apply -f "manifest.prod.sanitized.yaml"
 
 Wait until all pods are running before continuing.
 
-______________________________________________________________________
+## 5. Test the Setup
 
-## ✅ Test the Setup
-
-Forward the server service port to your local machine:
+Wait for pods and port-forward the server service:
 
 ```bash
-kubectl  wait --for=condition=Ready pod -l app="server" --timeout=300s
-kubectl  wait --for=condition=Ready pod -l app="client" --timeout=300s
-# being ready does not mean that port is available
+kubectl wait --for=condition=Ready pod -l app="server" --timeout=300s
+kubectl wait --for=condition=Ready pod -l app="client" --timeout=300s
+# A ready pod does not always mean the port is immediately available.
 sleep 10
 
-kubectl port-forward svc/barad-dur 3000 &  echo $! > /tmp/pf-3000.pid
+kubectl port-forward svc/barad-dur 3000 & echo $! > /tmp/pf-3000.pid
 ```
 
-Send a request to the server:
+Send requests:
 
 ```bash
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query 
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query 
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query
 ```
 
-### Expected Result
-
-The request should return a **random 7-character password**, confirming that:
+Expected result: a random 7-character password, which confirms:
 
 - The application is running correctly
-- The SCONE-protected images are working
-- NetworkPolicy rules allow the intended traffic
+- SCONE-protected images are working
+- NetworkPolicy rules allow intended traffic
 
-9. **Uninstall the demo**
+## 6. Uninstall the Demo
 
 ```bash
 kubectl delete -f manifest.prod.sanitized.yaml

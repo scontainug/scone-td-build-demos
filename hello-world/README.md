@@ -1,221 +1,170 @@
-# 🛡️ SCONE: Hello World
-
-## Steps to Run the Hello World Program
+# SCONE: Hello World
 
 ![Hello-World Example](../docs/hello-world.gif)
 
-We build a simple cloud-native `hello world` application. For this, we use Rust. Rust is available as the container image `rust:latest` on Docker Hub. We define a `Dockerfile` to create a `hello world` image:
+This example shows how to build a simple cloud-native `hello-world` application in Rust, run it natively in Kubernetes, and then deploy a confidential version with SCONE.
 
-- it creates a new Rust crate using `cargo`
-  - the new crate is actually defining a `hello world` program
-- we build this project and push it to a repository where we have push access:
+## 1. Prerequisites
 
-We assume we start in `scone-td-build-demos`. We need to ensure that we are in the correct directory for this example:
+- A token for accessing `scone.cloud` images on `registry.scontain.com`
+- A Kubernetes cluster with SGX or CVM support
+- The Kubernetes command-line tool (`kubectl`)
+- Rust `cargo` (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
+- `tplenv` (`cargo install tplenv`) and `retry-spinner` (`cargo install retry-spinner`)
+
+Follow the [Setup environment](https://github.com/scontain/scone) guide to install the required tools:
+
+- VM/laptop setup: [prerequisite_check.md](https://github.com/scontain/scone/blob/main/prerequisite_check.md)
+- Kubernetes-based setup: [k8s.md](https://github.com/scontain/scone/blob/main/k8s.md)
+
+## 2. Set Up Environment Variables
+
+We assume you start in `scone-td-build-demos`:
 
 ```bash
 pushd hello-world
 ```
 
-### 1. Prerequisites
+This example uses the following variables.
 
-We assume that you set up your tooling:
+For the native deployment:
 
-- A token for accessing `scone.cloud` images on `registry.scontain.com`
-- A Kubernetes cluster containing either SGX- oder SCONE-devices.
-- The Kubernetes command line tool (`kubectl`)
-- Rust `cargo` is installed (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
-- You installed `tplenv` (`cargo install tplenv`) and `retry-spinner` (`cargo install retry-spinner`)
+- `$IMAGE_NAME` - Name of the native container image for `hello-world`
+- `$IMAGE_PULL_SECRET_NAME` - Pull secret name for this image (default: `sconeapps`)
 
-Follow the [Setup environment](https://github.com/scontain/scone) guide to install these tools:
+For the confidential deployment:
 
- - to set up the tools on your VM / laptop, follow this guide: [prerequisite_check.md](https://github.com/scontain/scone/blob/main/prerequisite_check.md).  
- - The simplest way is to install the tools in a Kubernetes cluster follow this guide: [k8s.md](https://github.com/scontain/scone/blob/main/k8s.md).
+- `$DESTINATION_IMAGE_NAME` - Name of the confidential image
+- `$SCONE_VERSION` - SCONE version to use (for example, `7.0.0-alpha.1`)
+- `$CAS_NAMESPACE` - CAS Kubernetes namespace (for example, `default`)
+- `$CAS_NAME` - CAS Kubernetes name (for example, `cas`)
+- `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX
+- `$SCONE_ENCLAVE` - In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods
 
-
-#### 2. Setting up the Environment Variables
-
-We use the following environment variables in this example. For the cloud-native variant, we only need to define the following variables:
-
- - `$IMAGE_NAME` - name of the native container image to deploy the `hello-world` application,
- - `$IMAGE_PULL_SECRET_NAME` - the name of the pull secret used to pull this image (default: `sconeapps`). For simplicity, we assume we can use the same pull secret for both the native and confidential workloads.
-
-For the confidential, cloud-native application, we need to define more variables:
-
- - `$DESTINATION_IMAGE_NAME` - destination of the confidential container image
- - `$SCONE_VERSION` - the SCONE version to use (7.0.0-alpha.1 for now) 
- - `$CAS_NAMESPACE` - the Kubernetes namespace of CAS (SCONE Configuration and Attestation Service) (e.g., `default`)
- - `$CAS_NAME` - The Kubernetes name of CAS that we want to use (e.g., `cas`)
- - `$CVM_MODE` - if you want CVM mode, set it to `--cvm`. For SGX, leave it empty.
- - `$SCONE_ENCLAVE` - in CVM mode, you can run using confidential Kubernetes nodes (set to `--scone-enclave`) or Kata Pods (leave it empty).
-
-The default values of these environment variables are defined in file `Values.yaml`. To simplify the customization, we use a convenience tool [`tplenv`](https://github.com/scontainug/tplenv) that asks whether all defaults are okay:
-
-- Program `tplenv` asks the user whether to keep the current (default) configuration stored in `Values.yaml`. It uses environment variables to preset the values in case they are not yet defined in `Values.yaml`: Note that `Values.yaml` has priority over environment variables.
-
-If the user changes values, they are written to `Values.yaml`. `tplenv` will now ask for all environment variables described in `environment-variables.md`:
+Defaults are stored in `Values.yaml`. We use [`tplenv`](https://github.com/scontainug/tplenv) to confirm or override values:
 
 ```bash
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output  /dev/null )
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
 ```
 
-Next, we customize the job manifest to set the right image name (`$IMAGE_NAME`) and the right pull secret (`$IMAGE_PULL_SECRET_NAME`):
+Generate the job manifest with the selected image and pull-secret values:
 
 ```bash
-# customize the job manifest
-tplenv --file manifest.job.template.yaml --create-values-file --output  manifest.job.yaml
+tplenv --file manifest.job.template.yaml --create-values-file --output manifest.job.yaml
 ```
 
-#### 3. Build Native Container Image
+## 3. Build the Native Container Image
 
-Now we create the native `hello-world` application using Rust. Note that we could create the `hello-world` program inside the `Dockerfile` (see below) used to build the native container image. To keep this example easy to customize, we create the Rust files directly.
+Create the Rust project (or reuse an existing one):
 
 ```bash
-# create the hello-world application
 cargo new hello-world || echo "Hello World already exists - using existing one"
 ```
 
-We compile the application within a Rust image:
+Build and push the image:
 
 ```bash
-# build the hello-world app in a Container
 docker build -t $IMAGE_NAME .
-```
-
-If you have permission to push to `$IMAGE_NAME`, push the container image. If you use the default image name, you can use the pre-built container image (that is, there is no need to push the image).
-
-```bash
 docker push $IMAGE_NAME
 ```
 
-#### 4. Create a Pull Secret
+## 4. Create a Pull Secret
 
-We assume you need a pull secret to pull both the native and confidential container images. First, we check whether the pull secret is already set. If it is not, we ask the user for the information needed to create it:
+If the pull secret does not exist yet, create it using registry credentials.
 
-- `$REGISTRY` - the name of the registry. By default, this is `registry.scontain.com`.
-- `$REGISTRY_USER` - the login name of the user that pulls the container image.
-- `$REGISTRY_TOKEN` - the token used to pull the image. See <https://sconedocs.github.io/registry/> for how to create this token.
-
-We ask the user for the values of these environment variables using `tplenv` and file `registry.credentials.md` which introduces these three variables. Note that `tplenv` stores this information in `Values.yaml`.
+- `$REGISTRY` - Registry hostname (default: `registry.scontain.com`)
+- `$REGISTRY_USER` - Registry login name
+- `$REGISTRY_TOKEN` - Registry pull token (see <https://sconedocs.github.io/registry/>)
 
 ```bash
 if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
-  # ask user for the credentials for accessing the registry
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
   kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 ```
 
-#### 5. Run the Native Hello-World Application
-
+## 5. Run the Native Hello-World Application
 
 ```bash
-# Ensure that previous run is not running anymore
 kubectl delete job hello-world || echo "ok - no previous job that we need to delete"
 kubectl apply -f manifest.job.yaml
 ```
 
-First, we wait for the job logs to become available before we can show the output of the job:
+Wait for completion and stream logs:
 
 ```bash
 kubectl wait --for=condition=complete job/hello-world --timeout=300s
 kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps
 ```
 
-Finally, we delete the job and wait for the pod to terminate:
+Clean up:
 
 ```bash
 kubectl delete job hello-world
 kubectl wait --for=delete pod -l app=hello-world --timeout=300s
 ```
 
-#### 4. Attesting SCONE CAS (Configuration and Attestation Service)
+## 6. Attest SCONE CAS
 
-We encrypt the policies that we send to CAS to ensure the integrity and confidentiality of the policies. To do so, we need to attest and verify the CAS:
-
-- we need to learn that we can trust the CAS
-
-We do this using a plugin of `kubectl` that attests the CAS via the Kubernetes API:
+Before sending encrypted policies to CAS, attest CAS via the Kubernetes API:
 
 ```bash
-# attest the CAS - to ensure that we know the correct session encryption key
-kubectl scone cas attest --namespace ${CAS_NAMESPACE}  ${CAS_NAME} -C -G -S
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S
 ```
 
-In case the attestation and verification of the CAS would fail, please read the output of `kubectl scone cas attest` to determine which vulnerabilities were detected. It also suggests which options to pass to `kubectl scone cas attest` to tolerate these vulnerabilities, i.e., to make the attestation and verification succeed even if the hardware and firmware is out-of-date.
+If attestation fails, inspect the command output for detected vulnerabilities and suggested tolerance flags.
 
-## 5. Sconifying the Application
+## 7. Register the Confidential Image
 
-We need to identify the programs that must run confidentially. To do so, we identify all programs in the image that might run confidentially. We can explicitly specify all binaries that must be confidential by using the following options for `scone-td-build register`:
-
--  `--enforce <ENFORCE>` 
-          Set enforced binaries to ensure that these binaries in the protected image are executed confidentially in the destination image. To define multiple binaries, use this flag multiple times.
-
-- `--enforce-list <ENFORCE_LIST_FILE>`
-          Specify a file that contains a list of binary filenames in the protected image. All binaries in the list will run confidentially in the destination image.
-
-Alternatively, we could assume that all binaries might run confidentially. That might result in many programs being transformed. To reduce the number of binaries that need to be transformed and the effort of specifying all confidential binaries, we use the following approach:
-
-- `scone-td-build register` first determines all programs of a base image: we call this image the  `unprotected-image`
-- `scone-td-build register` then determines all programs of the container image used by the cloud-native application:  we call this image the `protected-image`
-
-We register a new image and we use this later in the context of the transformation of the Kuberentes manifests: the manifests are protected so that a Kubernetes cluster admin cannot modify or read an application's `ConfigMaps` and `Secrets`.
-
-Our translation generates a new image by appending the suffix `-scone` to the original image name, unless we define a new image name with `--destination-image`:
+Register the image for confidential execution:
 
 ```bash
 scone-td-build register --protected-image $IMAGE_NAME --unprotected-image rust:latest --manifest-env SCONE_PRODUCTION=0 -s ./storage.json --destination-image ${DESTINATION_IMAGE_NAME} --push --version ${SCONE_VERSION} ${CVM_MODE}
 ```
 
-Registering images allows us to copy images into our own repository. This decouples our application from changes in the upstream repository that contains the original container image (in this case, `$IMAGE_NAME`).
+This creates a protected image (or uses `--destination-image` if provided) and decouples your deployment from upstream image changes.
 
+## 8. Transform the Kubernetes Manifest
 
-#### 7. Transforming the Kubernetes manifests
-
-Next, we use the native Kubernetes manifests and transform them into *sanitized* manifests.
+Convert the native manifest into a sanitized confidential manifest:
 
 ```bash
-scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0  --manifest-env SCONE_VERSION=1 ${CVM_MODE} ${SCONE_ENCLAVE}
+scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_VERSION=1 ${CVM_MODE} ${SCONE_ENCLAVE}
 ```
 
-#### 8. Apply the new manifest
-
-The manifests are uploaded as we upload native manifests:
+## 9. Deploy the Confidential Manifest
 
 ```bash
 kubectl apply -f manifest.job.cleaned.yaml
-```
-
-First, we wait for the job logs to become available before we can show the output of the job:
-
-```bash
 kubectl wait --for=condition=complete job/hello-world --timeout=300s
 kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps
 ```
 
-Finally, we delete the job and wait for the pod to terminate:
-
-
-
-#### 9. Uninstall `hello-world`
-
-Delete the job that we just created:
+## 10. Uninstall `hello-world`
 
 ```bash
 kubectl delete job hello-world
 kubectl wait --for=delete pod -l app=hello-world --timeout=300s
-```
-
-and return to the previous directory:
-
-```bash
 popd
 ```
 
-### Automation
+## Automation
 
-You can execute the steps in this document automatically by running `./scripts/hello-world.sh`. Note that this will not ask for user input; it will use the configuration in `hello-world/Values.yaml`.
+You can run this workflow with:
 
-If you update the commands in this document, run `./scripts/extract-all-scripts.sh` to regenerate `./scripts/hello-world.sh`.
+```
+./scripts/hello-world.sh
+```
+
+It asks for user input unless you set:
+
+```
+export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--value-file-only"
+```
+
+This uses values from `hello-world/Values.yaml` and skips interactive prompts. By default, this variable is set to `--force`, which prompts for confirmation of current values.
+
+If you update commands in this document, run `./scripts/extract-all-scripts.sh` to regenerate `./scripts/hello-world.sh`.
