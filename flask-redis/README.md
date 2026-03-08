@@ -1,8 +1,7 @@
 # flask-redis
 
 A Flask REST API backed by a TLS-secured Redis instance, packaged for Kubernetes.
-This guide walks through deploying the **native** version first, running integration tests,
-then building and deploying the **confidential** (SCONE) version and testing it again.
+This guide walks through deploying the **native** version first, running integration tests, then building and deploying the **confidential** (SCONE) version and testing it again.
 
 ![Flask Redis Demo](../docs/flask-redis.gif)
 
@@ -92,7 +91,7 @@ docker push ${IMAGE_NAME}
 
 ### Step 3. Create the namespace
 
-We try to ensure that the namespace exists. This might fail when running in a container in the right namespace. Hence, we ignore for now.
+We try to ensure the namespace exists. This may fail when running in a container that is already in the target namespace, so we ignore that failure.
 
 ```bash
 kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
@@ -139,7 +138,6 @@ A pull secret is needed to pull both the native and confidential container image
 - `$REGISTRY_USER` — your registry login name
 - `$REGISTRY_TOKEN` — your registry pull token (see [how to create a token](https://sconedocs.github.io/registry/))
 
-
 We create the pull secret in the namespace if it does not yet exist:
 
 ```bash
@@ -147,7 +145,6 @@ if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
-  # ask user for the credentials for accessing the registry
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
   kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
@@ -264,7 +261,7 @@ else
 fi
 ```
 
-Generate the SCONE config from its template, then run `scone-td-build` to produce hardened confidential images for both Redis and Flask, and push them to the registry:
+Generate the SCONE config from its template, then run `scone-td-build` to produce hardened confidential images for both Redis and Flask and push them to the registry:
 
 ```bash
 tplenv --file scone.template.yaml --create-values-file --output scone.yaml
@@ -351,7 +348,7 @@ curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time
 
 ## Cleanup
 
-Remove all deployed resources when finished:
+Remove all deployed resources when you are finished:
 
 ```bash
 # Stop the port-forward
