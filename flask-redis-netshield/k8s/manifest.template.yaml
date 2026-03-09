@@ -1,0 +1,168 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: ${NAMESPACE}
+data:
+  redis.conf: |
+    port 6379
+    loglevel notice
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: ${NAMESPACE}
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      imagePullSecrets:
+        - name: ${IMAGE_PULL_SECRET_NAME}
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          imagePullPolicy: Always
+          command: ["/usr/local/bin/redis-server", "/etc/redis/redis.conf"]
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: redis-config
+              mountPath: /etc/redis
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: redis-config
+          configMap:
+            name: redis-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: ${NAMESPACE}
+  labels:
+    app: redis
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-api
+  namespace: ${NAMESPACE}
+  labels:
+    app: flask-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flask-api
+  template:
+    metadata:
+      labels:
+        app: flask-api
+    spec:
+      imagePullSecrets:
+        - name: ${IMAGE_PULL_SECRET_NAME}
+      containers:
+        - name: flask-api
+          image: ${IMAGE_NAME}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 4996
+          env:
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /keys
+              port: 4996
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /keys
+              port: 4996
+            initialDelaySeconds: 10
+            periodSeconds: 15
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-api
+  namespace: ${NAMESPACE}
+  labels:
+    app: flask-api
+  annotations:
+    sconev1.networkshield/unprotected_ports: "4996"
+spec:
+  selector:
+    app: flask-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 4996
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-network-policy
+  namespace: ${NAMESPACE}
+spec:
+  podSelector:
+    matchLabels:
+      app: redis
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: flask-api
+      ports:
+        - protocol: TCP
+          port: 6379

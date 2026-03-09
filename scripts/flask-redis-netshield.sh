@@ -48,8 +48,6 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' 'cd flask-redis'
 printf '%s\n' 'mkdir -p certs'
-printf '%s\n' '# cleanup'
-printf '%s\n' 'rm -f flask-redis/flask-redis-demo.json || true'
 printf '%s\n' ''
 printf '%s\n' '# CA'
 printf '%s\n' 'openssl genrsa -out certs/redis-ca.key 4096'
@@ -77,8 +75,6 @@ printf "${RESET}"
 
 cd flask-redis
 mkdir -p certs
-# cleanup
-rm -f flask-redis/flask-redis-demo.json || true
 
 # CA
 openssl genrsa -out certs/redis-ca.key 4096
@@ -240,12 +236,12 @@ printf '%s\n' '  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME
 printf '%s\n' 'fi'
 printf "${RESET}"
 
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" -n "${NAMESPACE}"  >/dev/null 2>&1; then
+if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}"  -n "${NAMESPACE}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 
 printf "${VIOLET}"
@@ -293,9 +289,7 @@ printf '%s\n' '# Wait for Flask API'
 printf '%s\n' 'kubectl rollout status deployment/flask-api -n ${NAMESPACE} --watch=true  --timeout=240s'
 printf '%s\n' ''
 printf '%s\n' '# Check logs'
-printf '%s\n' 'echo "Log of flask-api"'
 printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50'
-printf '%s\n' 'echo "Log of flask-api"'
 printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=redis --tail=20'
 printf "${RESET}"
 
@@ -309,9 +303,7 @@ kubectl rollout status deployment/redis -n ${NAMESPACE}  --watch=true  --timeout
 kubectl rollout status deployment/flask-api -n ${NAMESPACE} --watch=true  --timeout=240s
 
 # Check logs
-echo "Log of flask-api"
 kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
-echo "Log of flask-api"
 kubectl logs -n ${NAMESPACE} -l app=redis --tail=20
 
 printf "${VIOLET}"
@@ -350,16 +342,16 @@ kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-149
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Then send requests against `https://localhost:14996`:'
+printf '%s\n' 'Then send requests against `http://localhost:14996`:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# List all stored keys'
-printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys'
+printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/keys'
 printf '%s\n' ''
 printf '%s\n' '# Create a client record'
-printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \'
+printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST http://localhost:14996/client/abc123 \'
 printf '%s\n' '  -F fname=John \'
 printf '%s\n' '  -F lname=Doe \'
 printf '%s\n' '  -F address="123 Main St" \'
@@ -369,20 +361,20 @@ printf '%s\n' '  -F ssn="123-45-6789" \'
 printf '%s\n' '  -F email="john@example.com"'
 printf '%s\n' ''
 printf '%s\n' '# Retrieve a client'
-printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123'
+printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/client/abc123'
 printf '%s\n' ''
 printf '%s\n' '# Get credit score'
-printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123'
+printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/score/abc123'
 printf '%s\n' ''
 printf '%s\n' '# Memory dump (debug)'
-printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory'
+printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/memory'
 printf "${RESET}"
 
 # List all stored keys
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/keys
 
 # Create a client record
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST http://localhost:14996/client/abc123 \
   -F fname=John \
   -F lname=Doe \
   -F address="123 Main St" \
@@ -392,13 +384,13 @@ curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time
   -F email="john@example.com"
 
 # Retrieve a client
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/client/abc123
 
 # Get credit score
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/score/abc123
 
 # Memory dump (debug)
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/memory
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -414,14 +406,10 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found'
-printf '%s\n' 'kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s'
-printf '%s\n' 'kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s'
 printf '%s\n' 'kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found'
 printf "${RESET}"
 
 kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
-kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
-kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found
 
 printf "${VIOLET}"
@@ -500,10 +488,10 @@ printf '%s\n' '# Watch all resources come up'
 printf '%s\n' 'kubectl get all -n ${NAMESPACE}'
 printf '%s\n' ''
 printf '%s\n' '# Wait for Redis'
-printf '%s\n' 'kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s'
+printf '%s\n' 'kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=300s'
 printf '%s\n' ''
 printf '%s\n' '# Wait for Flask API'
-printf '%s\n' 'kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=redis --timeout=300s'
+printf '%s\n' 'kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=300s'
 printf '%s\n' ''
 printf '%s\n' '# Check logs'
 printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50'
@@ -514,10 +502,10 @@ printf "${RESET}"
 kubectl get all -n ${NAMESPACE}
 
 # Wait for Redis
-kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
+kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=300s
 
 # Wait for Flask API
-kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
+kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=300s
 
 # Check logs
 kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
@@ -557,16 +545,16 @@ kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-149
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Then send requests against `https://localhost:14996`:'
+printf '%s\n' 'Then send requests against `http://localhost:14996`:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# List all stored keys'
-printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys'
+printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/keys'
 printf '%s\n' ''
 printf '%s\n' '# Create a client record'
-printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \'
+printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST http://localhost:14996/client/abc123 \'
 printf '%s\n' '  -F fname=John \'
 printf '%s\n' '  -F lname=Doe \'
 printf '%s\n' '  -F address="123 Main St" \'
@@ -576,20 +564,20 @@ printf '%s\n' '  -F ssn="123-45-6789" \'
 printf '%s\n' '  -F email="john@example.com"'
 printf '%s\n' ''
 printf '%s\n' '# Retrieve a client'
-printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123'
+printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/client/abc123'
 printf '%s\n' ''
 printf '%s\n' '# Get credit score'
-printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123'
+printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/score/abc123'
 printf '%s\n' ''
 printf '%s\n' '# Memory dump (debug)'
-printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory'
+printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/memory'
 printf "${RESET}"
 
 # List all stored keys
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/keys
 
 # Create a client record
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST http://localhost:14996/client/abc123 \
   -F fname=John \
   -F lname=Doe \
   -F address="123 Main St" \
@@ -599,13 +587,13 @@ curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time
   -F email="john@example.com"
 
 # Retrieve a client
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/client/abc123
 
 # Get credit score
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/score/abc123
 
 # Memory dump (debug)
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk http://localhost:14996/memory
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -626,8 +614,6 @@ printf '%s\n' 'rm /tmp/pf-14996.pid'
 printf '%s\n' ''
 printf '%s\n' '# Delete confidential manifest resources'
 printf '%s\n' 'kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found'
-printf '%s\n' 'kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s'
-printf '%s\n' 'kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s'
 printf "${RESET}"
 
 # Stop the port-forward
@@ -636,8 +622,6 @@ rm /tmp/pf-14996.pid
 
 # Delete confidential manifest resources
 kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
-kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
-kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 
 printf "${VIOLET}"
 printf '%s\n' ''
