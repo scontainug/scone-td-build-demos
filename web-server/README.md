@@ -57,6 +57,7 @@ Assume you start in `scone-td-build-demos`, then switch to this demo:
 
 ```bash
 pushd web-server
+rm storage.json || true
 ```
 
 Defaults are stored in `Values.yaml`. `tplenv` asks whether to keep them and sets:
@@ -64,7 +65,7 @@ Defaults are stored in `Values.yaml`. `tplenv` asks whether to keep them and set
 - `$IMAGE_NAME` - Name of the native `web-server` image
 - `$DESTINATION_IMAGE_NAME` - Name of the confidential image
 - `$IMAGE_PULL_SECRET_NAME` - Pull secret name (default: `sconeapps`)
-- `$SCONE_VERSION` - SCONE version to use (for example, `7.0.0-alpha.1`)
+- `$SCONE_VERSION` - SCONE version to use (for example, `6.1.0-rc.0`)
 - `$CAS_NAMESPACE` - CAS namespace (for example, `default`)
 - `$CAS_NAME` - CAS name (for example, `cas`)
 - `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX
@@ -156,6 +157,7 @@ scone-td-build apply \
   -f manifest.yaml \
   -c ${CAS_NAME}.${CAS_NAMESPACE} \
   -s ./storage.json \
+  --spol \
   --manifest-env SCONE_SYSLIBS=1 \
   --manifest-env SCONE_VERSION=1 \
   --session-env SCONE_VERSION=1 \

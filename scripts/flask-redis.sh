@@ -48,6 +48,8 @@ printf "${RESET}"
 printf "${ORANGE}"
 printf '%s\n' 'cd flask-redis'
 printf '%s\n' 'mkdir -p certs'
+printf '%s\n' '# cleanup'
+printf '%s\n' 'rm -f flask-redis/flask-redis-demo.json || true'
 printf '%s\n' ''
 printf '%s\n' '# CA'
 printf '%s\n' 'openssl genrsa -out certs/redis-ca.key 4096'
@@ -75,6 +77,8 @@ printf "${RESET}"
 
 cd flask-redis
 mkdir -p certs
+# cleanup
+rm -f flask-redis/flask-redis-demo.json || true
 
 # CA
 openssl genrsa -out certs/redis-ca.key 4096
@@ -289,7 +293,9 @@ printf '%s\n' '# Wait for Flask API'
 printf '%s\n' 'kubectl rollout status deployment/flask-api -n ${NAMESPACE} --watch=true  --timeout=240s'
 printf '%s\n' ''
 printf '%s\n' '# Check logs'
+printf '%s\n' 'echo "Log of flask-api"'
 printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50'
+printf '%s\n' 'echo "Log of flask-api"'
 printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=redis --tail=20'
 printf "${RESET}"
 
@@ -303,7 +309,9 @@ kubectl rollout status deployment/redis -n ${NAMESPACE}  --watch=true  --timeout
 kubectl rollout status deployment/flask-api -n ${NAMESPACE} --watch=true  --timeout=240s
 
 # Check logs
+echo "Log of flask-api"
 kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
+echo "Log of flask-api"
 kubectl logs -n ${NAMESPACE} -l app=redis --tail=20
 
 printf "${VIOLET}"
@@ -406,10 +414,14 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found'
+printf '%s\n' 'kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s'
+printf '%s\n' 'kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s'
 printf '%s\n' 'kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found'
 printf "${RESET}"
 
 kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
+kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
+kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found
 
 printf "${VIOLET}"
@@ -488,10 +500,10 @@ printf '%s\n' '# Watch all resources come up'
 printf '%s\n' 'kubectl get all -n ${NAMESPACE}'
 printf '%s\n' ''
 printf '%s\n' '# Wait for Redis'
-printf '%s\n' 'kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=300s'
+printf '%s\n' 'kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s'
 printf '%s\n' ''
 printf '%s\n' '# Wait for Flask API'
-printf '%s\n' 'kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=300s'
+printf '%s\n' 'kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=redis --timeout=300s'
 printf '%s\n' ''
 printf '%s\n' '# Check logs'
 printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50'
@@ -502,10 +514,10 @@ printf "${RESET}"
 kubectl get all -n ${NAMESPACE}
 
 # Wait for Redis
-kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=300s
+kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
 
 # Wait for Flask API
-kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=300s
+kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 
 # Check logs
 kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
@@ -614,6 +626,8 @@ printf '%s\n' 'rm /tmp/pf-14996.pid'
 printf '%s\n' ''
 printf '%s\n' '# Delete confidential manifest resources'
 printf '%s\n' 'kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found'
+printf '%s\n' 'kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s'
+printf '%s\n' 'kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s'
 printf "${RESET}"
 
 # Stop the port-forward
@@ -622,6 +636,8 @@ rm /tmp/pf-14996.pid
 
 # Delete confidential manifest resources
 kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
+kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
+kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 
 printf "${VIOLET}"
 printf '%s\n' ''

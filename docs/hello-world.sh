@@ -80,6 +80,10 @@ pe "$(cat <<'EOF'
 pushd hello-world
 EOF
 )"
+pe "$(cat <<'EOF'
+rm -f storage.json || true
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -93,7 +97,7 @@ printf '%s\n' ''
 printf '%s\n' 'For the confidential deployment:'
 printf '%s\n' ''
 printf '%s\n' '- `$DESTINATION_IMAGE_NAME` - Name of the confidential image'
-printf '%s\n' '- `$SCONE_VERSION` - SCONE version to use (for example, `7.0.0-alpha.1`)'
+printf '%s\n' '- `$SCONE_VERSION` - SCONE version to use (for example, `6.1.0-rc.0`)'
 printf '%s\n' '- `$CAS_NAMESPACE` - CAS Kubernetes namespace (for example, `default`)'
 printf '%s\n' '- `$CAS_NAME` - CAS Kubernetes name (for example, `cas`)'
 printf '%s\n' '- `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX'
@@ -272,7 +276,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_VERSION=1 ${CVM_MODE} ${SCONE_ENCLAVE}
+scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --spol --manifest-env SCONE_VERSION=1 ${CVM_MODE} ${SCONE_ENCLAVE}
 EOF
 )"
 

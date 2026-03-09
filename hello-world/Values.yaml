@@ -4,7 +4,7 @@ environment:
   CAS_NAMESPACE: default
   CAS_NAME: cas
   DESTINATION_IMAGE_NAME: registry.scontain.com/workshop/hello-world:protected
-  SCONE_VERSION: 7.0.0-alpha.1
+  SCONE_VERSION: 6.1.0-rc.0
   CVM_MODE: --cvm
   SCONE_ENCLAVE: --scone-enclave
   REGISTRY: registry.scontain.com

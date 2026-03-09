@@ -97,6 +97,14 @@ mkdir -p certs
 EOF
 )"
 pe "$(cat <<'EOF'
+# cleanup
+EOF
+)"
+pe "$(cat <<'EOF'
+rm -f flask-redis/flask-redis-demo.json || true
+EOF
+)"
+pe "$(cat <<'EOF'
 
 EOF
 )"
@@ -397,7 +405,15 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+echo "Log of flask-api"
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
+EOF
+)"
+pe "$(cat <<'EOF'
+echo "Log of flask-api"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -540,6 +556,14 @@ kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
 EOF
 )"
 pe "$(cat <<'EOF'
+kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found
 EOF
 )"
@@ -643,7 +667,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=300s
+kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -655,7 +679,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=300s
+kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -823,6 +847,14 @@ EOF
 )"
 pe "$(cat <<'EOF'
 kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 EOF
 )"
 

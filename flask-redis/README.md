@@ -38,6 +38,8 @@ flask-redis/
 ```bash
 cd flask-redis
 mkdir -p certs
+# cleanup
+rm -f flask-redis/flask-redis-demo.json || true
 
 # CA
 openssl genrsa -out certs/redis-ca.key 4096
@@ -179,7 +181,9 @@ kubectl rollout status deployment/redis -n ${NAMESPACE}  --watch=true  --timeout
 kubectl rollout status deployment/flask-api -n ${NAMESPACE} --watch=true  --timeout=240s
 
 # Check logs
+echo "Log of flask-api"
 kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
+echo "Log of flask-api"
 kubectl logs -n ${NAMESPACE} -l app=redis --tail=20
 ```
 
@@ -238,6 +242,8 @@ Remove the native workloads and secrets before switching to the confidential ver
 
 ```bash
 kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
+kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
+kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found
 ```
 
@@ -288,10 +294,10 @@ kubectl apply -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}
 kubectl get all -n ${NAMESPACE}
 
 # Wait for Redis
-kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=300s
+kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
 
 # Wait for Flask API
-kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=300s
+kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 
 # Check logs
 kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
@@ -357,6 +363,8 @@ rm /tmp/pf-14996.pid
 
 # Delete confidential manifest resources
 kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
+kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
+kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 ```
 
 ---

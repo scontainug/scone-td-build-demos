@@ -114,6 +114,10 @@ pe "$(cat <<'EOF'
 pushd web-server
 EOF
 )"
+pe "$(cat <<'EOF'
+rm storage.json || true
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
@@ -122,7 +126,7 @@ printf '%s\n' ''
 printf '%s\n' '- `$IMAGE_NAME` - Name of the native `web-server` image'
 printf '%s\n' '- `$DESTINATION_IMAGE_NAME` - Name of the confidential image'
 printf '%s\n' '- `$IMAGE_PULL_SECRET_NAME` - Pull secret name (default: `sconeapps`)'
-printf '%s\n' '- `$SCONE_VERSION` - SCONE version to use (for example, `7.0.0-alpha.1`)'
+printf '%s\n' '- `$SCONE_VERSION` - SCONE version to use (for example, `6.1.0-rc.0`)'
 printf '%s\n' '- `$CAS_NAMESPACE` - CAS namespace (for example, `default`)'
 printf '%s\n' '- `$CAS_NAME` - CAS name (for example, `cas`)'
 printf '%s\n' '- `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX'
@@ -310,6 +314,7 @@ scone-td-build apply \
   -f manifest.yaml \
   -c ${CAS_NAME}.${CAS_NAMESPACE} \
   -s ./storage.json \
+  --spol \
   --manifest-env SCONE_SYSLIBS=1 \
   --manifest-env SCONE_VERSION=1 \
   --session-env SCONE_VERSION=1 \

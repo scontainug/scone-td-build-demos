@@ -69,9 +69,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'pushd web-server'
+printf '%s\n' 'rm storage.json || true'
 printf "${RESET}"
 
 pushd web-server
+rm storage.json || true
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -80,7 +82,7 @@ printf '%s\n' ''
 printf '%s\n' '- `$IMAGE_NAME` - Name of the native `web-server` image'
 printf '%s\n' '- `$DESTINATION_IMAGE_NAME` - Name of the confidential image'
 printf '%s\n' '- `$IMAGE_PULL_SECRET_NAME` - Pull secret name (default: `sconeapps`)'
-printf '%s\n' '- `$SCONE_VERSION` - SCONE version to use (for example, `7.0.0-alpha.1`)'
+printf '%s\n' '- `$SCONE_VERSION` - SCONE version to use (for example, `6.1.0-rc.0`)'
 printf '%s\n' '- `$CAS_NAMESPACE` - CAS namespace (for example, `default`)'
 printf '%s\n' '- `$CAS_NAME` - CAS name (for example, `cas`)'
 printf '%s\n' '- `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX'
@@ -247,6 +249,7 @@ printf '%s\n' 'scone-td-build apply \'
 printf '%s\n' '  -f manifest.yaml \'
 printf '%s\n' '  -c ${CAS_NAME}.${CAS_NAMESPACE} \'
 printf '%s\n' '  -s ./storage.json \'
+printf '%s\n' '  --spol \'
 printf '%s\n' '  --manifest-env SCONE_SYSLIBS=1 \'
 printf '%s\n' '  --manifest-env SCONE_VERSION=1 \'
 printf '%s\n' '  --session-env SCONE_VERSION=1 \'
@@ -257,6 +260,7 @@ scone-td-build apply \
   -f manifest.yaml \
   -c ${CAS_NAME}.${CAS_NAMESPACE} \
   -s ./storage.json \
+  --spol \
   --manifest-env SCONE_SYSLIBS=1 \
   --manifest-env SCONE_VERSION=1 \
   --session-env SCONE_VERSION=1 \

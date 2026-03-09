@@ -30,9 +30,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'cd network-policy'
+printf '%s\n' 'rm -f netshield.json || true'
 printf "${RESET}"
 
 cd network-policy
+rm -f netshield.json || true
 
 printf "${VIOLET}"
 printf '%s\n' ''

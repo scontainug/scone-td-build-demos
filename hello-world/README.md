@@ -23,6 +23,7 @@ We assume you start in `scone-td-build-demos`:
 
 ```bash
 pushd hello-world
+rm -f storage.json || true
 ```
 
 This example uses the following variables.
@@ -35,7 +36,7 @@ For the native deployment:
 For the confidential deployment:
 
 - `$DESTINATION_IMAGE_NAME` - Name of the confidential image
-- `$SCONE_VERSION` - SCONE version to use (for example, `7.0.0-alpha.1`)
+- `$SCONE_VERSION` - SCONE version to use (for example, `6.1.0-rc.0`)
 - `$CAS_NAMESPACE` - CAS Kubernetes namespace (for example, `default`)
 - `$CAS_NAME` - CAS Kubernetes name (for example, `cas`)
 - `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX
@@ -132,7 +133,7 @@ This creates a protected image (or uses `--destination-image` if provided) and d
 Convert the native manifest into a sanitized confidential manifest:
 
 ```bash
-scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_VERSION=1 ${CVM_MODE} ${SCONE_ENCLAVE}
+scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --spol --manifest-env SCONE_VERSION=1 ${CVM_MODE} ${SCONE_ENCLAVE}
 ```
 
 ## 9. Deploy the Confidential Manifest

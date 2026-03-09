@@ -18,6 +18,7 @@ Switch to the demo directory:
 
 ```bash
 cd network-policy
+rm -f netshield.json || true
 ```
 
 ## 2. Build Images

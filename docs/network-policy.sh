@@ -75,6 +75,10 @@ pe "$(cat <<'EOF'
 cd network-policy
 EOF
 )"
+pe "$(cat <<'EOF'
+rm -f netshield.json || true
+EOF
+)"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''

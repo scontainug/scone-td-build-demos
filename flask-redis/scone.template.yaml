@@ -26,6 +26,7 @@ spec:
   enforce: ["/usr/local/bin/python"]
   push_scone_image: true
   cvm: ${CVM_MODE}
+  version: ${SCONE_VERSION}
   manifest_env:
     - {name: SCONE_VERSION, value: "1"}
     - {name: SCONE_SYSLIBS, value: "1"}
