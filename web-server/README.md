@@ -4,7 +4,7 @@
 
 This Rust application is a minimal web service built with [Axum](https://github.com/tokio-rs/axum). It is intentionally small and easy to follow.
 
-![Web-Server Example](../docs/web-server.gif)
+[![Web-Server Example](../docs/web-server.gif)](../docs/web-server.mp4)
 
 ## Endpoints
 

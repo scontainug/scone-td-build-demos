@@ -2,7 +2,8 @@
 
 This example shows how to manage and access configuration data in Kubernetes with a `ConfigMap` and a SCONE-enabled Rust application. You start with a plain (unencrypted) deployment and then move to a fully protected SCONE deployment.
 
-![ConfigMap Example](../docs/configmap.gif)
+
+[![ConfigMap Example](../docs/configmap.gif)](../docs/configmap.mp4)
 
 ## 1. Prerequisites
 

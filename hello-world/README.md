@@ -1,6 +1,6 @@
 # SCONE: Hello World
 
-![Hello-World Example](../docs/hello-world.gif)
+[![Hello World Example](../docs/hello-world.gif)](../docs/hello-world.mp4)
 
 This example shows how to build a simple cloud-native `hello-world` application in Rust, run it natively in Kubernetes, and then deploy a confidential version with SCONE.
 

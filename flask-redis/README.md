@@ -3,7 +3,7 @@
 A Flask REST API backed by a TLS-secured Redis instance, packaged for Kubernetes.
 This guide walks through deploying the **native** version first, running integration tests, then building and deploying the **confidential** (SCONE) version and testing it again.
 
-![Flask Redis Demo](../docs/flask-redis.gif)
+[![Flask Redis Example](../docs/flask-redis.gif)](../docs/flask-redis.mp4)
 
 ## Project Structure
 
