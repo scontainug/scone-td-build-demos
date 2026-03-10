@@ -46,7 +46,7 @@ spec:
   output_manifest_file: "manifest.prod.sanitized.yaml"
   output_session_file: "manifest.prod.session.yaml"
   cas_address:
-    address: cas.default
+    address: ${CAS_NAME}.${CAS_NAMESPACE}
   session_env:
     - {name: SCONE_VERSION, value: "1"}
   manifest_env:
