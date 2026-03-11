@@ -78,7 +78,7 @@ eval $(tplenv --file environment-variables.md --create-values-file --eval ${CONF
 Attest CAS before sending encrypted policies:
 
 ```bash
-kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is ok if you first attested using *scone cas attest ..."
 ```
 
 If attestation fails, review the output for detected issues and suggested tolerance flags.

@@ -57,7 +57,7 @@ printf '%s\n' '## Introduction'
 printf '%s\n' ''
 printf '%s\n' 'This Rust application is a minimal web service built with [Axum](https://github.com/tokio-rs/axum). It is intentionally small and easy to follow.'
 printf '%s\n' ''
-printf '%s\n' '![Web-Server Example](../docs/web-server.gif)'
+printf '%s\n' '[![Web-Server Example](../docs/web-server.gif)](../docs/web-server.mp4)'
 printf '%s\n' ''
 printf '%s\n' '## Endpoints'
 printf '%s\n' ''
@@ -146,7 +146,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is ok if you first attested using *scone cas attest ..."
 EOF
 )"
 
