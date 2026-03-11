@@ -14,7 +14,7 @@ printf '%s\n' '## Introduction'
 printf '%s\n' ''
 printf '%s\n' 'This Rust application is a minimal web service built with [Axum](https://github.com/tokio-rs/axum). It is intentionally small and easy to follow.'
 printf '%s\n' ''
-printf '%s\n' '![Web-Server Example](../docs/web-server.gif)'
+printf '%s\n' '[![Web-Server Example](../docs/web-server.gif)](../docs/web-server.mp4)'
 printf '%s\n' ''
 printf '%s\n' '## Endpoints'
 printf '%s\n' ''
@@ -181,7 +181,7 @@ scone-td-build register \
   --protected-image ${IMAGE_NAME} \
   --unprotected-image ${IMAGE_NAME} \
   --destination-image ${DESTINATION_IMAGE_NAME} \
-  --push ${CVM_MODE} \
+  --push \
   -s ./storage.json \
   --enforce /app/web-server \
   --version ${SCONE_VERSION}
@@ -260,11 +260,10 @@ scone-td-build apply \
   -f manifest.yaml \
   -c ${CAS_NAME}.${CAS_NAMESPACE} \
   -s ./storage.json \
-  --spol ${CVM_MODE} ${SCONE_ENCLAVE} \
+  --spol \
   --manifest-env SCONE_SYSLIBS=1 \
   --manifest-env SCONE_VERSION=1 \
   --session-env SCONE_VERSION=1 \
-  --manifest-env SCONE_PRODUCTION=0 \
   --version ${SCONE_VERSION} -p
 
 printf "${VIOLET}"

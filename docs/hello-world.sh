@@ -53,7 +53,7 @@ stty cols "$COLUMNS" rows "$LINES"
 printf "%b" "$LILAC"
 printf '%s\n' '# SCONE: Hello World'
 printf '%s\n' ''
-printf '%s\n' '![Hello-World Example](../docs/hello-world.gif)'
+printf '%s\n' '[![Hello World Example](../docs/hello-world.gif)](../docs/hello-world.mp4)'
 printf '%s\n' ''
 printf '%s\n' 'This example shows how to build a simple cloud-native `hello-world` application in Rust, run it natively in Kubernetes, and then deploy a confidential version with SCONE.'
 printf '%s\n' ''
