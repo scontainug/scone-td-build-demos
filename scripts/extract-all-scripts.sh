@@ -39,7 +39,7 @@ for pair in "${cvm_files[@]}"; do
 done
 
 workshop_files=(
-  "workshop/README.md scripts/workshop.sh"
+  "workshop/TDX-DEMO.md scripts/workshop.sh"
 )
 
 for pair in "${workshop_files[@]}"; do

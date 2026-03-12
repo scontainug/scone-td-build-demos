@@ -1,316 +1,118 @@
-# TDX Demo
+# TDX Workshop
 
-This guide covers creating a 2-node TDX cluster on Azure with platform attestation, connecting to the SGX cluster's CAS, and running the demo applications. All steps assume you are running inside the SCONE workshop container.
+This runbook provisions a TDX CVM cluster on Azure, installs the SCONE platform with SGX plugin 7.0.0-alpha.1, and runs the full demo suite. Each demo attests the public CAS (`scone-cas.cf`) individually.
 
-The 2-node setup is used to demonstrate platform attestation, where KBS verifies that each node runs inside a genuine TDX VM before releasing secrets. If you do not need attestation for your demo, you can simplify by creating a single-node cluster with the `--no-attestation` flag.
+## 1. Load Environment Variables
 
-## Prerequisites
-
-- The SCONE workshop container running (via `./scripts/k8s_cli.sh` or locally)
-- An Azure subscription with quota for DC-series CVM VMs (DCesv5 or DCedsv5 for TDX)
-- A running SGX cluster with CAS deployed (see [SGX-DEMO.md](SGX-DEMO.md))
-
-## Azure Credentials
-
-Create a service principal with Contributor role (skip if already created for the SGX demo):
+Load configuration from `workshop/Values.yaml`. We `pushd` into the workshop directory so that tplenv finds `Values.yaml` with the defaults:
 
 ```bash
-az ad sp create-for-rbac --name "scone-azure-sp" --role Contributor \
-  --scopes /subscriptions/<subscription-id> --sdk-auth > az-credentials.json
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+pushd workshop
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
+popd
 ```
 
-This produces a JSON file with the following structure:
+## 2. Verify Prerequisites
 
-```json
-{
-  "tenantId": "your-tenant-id",
-  "clientId": "your-client-id",
-  "clientSecret": "your-client-secret",
-  "subscriptionId": "your-subscription-id"
-}
-```
-
-## 1. Build the Custom CVM Image
-
-TDX clusters require a custom CVM image with the `scone_enclave` kernel driver built into the kernel. This image is created once and reused across clusters.
-
-### Clone the Required Repositories
+Check that all required tools are available:
 
 ```bash
-git clone https://github.com/scontain-gmbh/kubectl-scone-azure.git
-cd kubectl-scone-azure
-
-git clone git@gitlab.scontain.com:sergey/cvm-kernel-module.git
-cd cvm-kernel-module
-git checkout sergei/in-tree
-cd ..
+for tool in kubectl-scone_azure az kubectl scone-td-build tplenv jq; do
+  if ! command -v "$tool" &>/dev/null; then
+    echo "ERROR: $tool is not installed or not on PATH"
+    exit 1
+  fi
+  echo "OK: $tool"
+done
 ```
 
-### Run the Image Build Script
+## 3. Create TDX CVM Cluster
 
-The build script compiles a custom linux-azure kernel with the `scone_enclave` driver, creates an Azure CVM from it, and publishes it as a gallery image:
+Provision a single-node TDX cluster on Azure. The `--no-attestation` flag skips KBS platform attestation to simplify the flow.
 
 ```bash
-./scripts/build-cvm-image.sh \
-    --driver-source cvm-kernel-module/scone_enclave \
-    --gallery-name sconeGallery \
-    --resource-group <resource-group> \
-    --subscription-id <subscription-id>
+kubectl scone-azure create --tdx \
+  --node-count ${NODE_COUNT} \
+  --memory ${MEMORY} \
+  --vcores ${VCORES} \
+  --scone-config ${CVM_CONFIG} \
+  --kube-config ${KUBECONFIG_PATH} \
+  --credentials ${AZURE_CREDENTIALS} \
+  --rg ${RESOURCE_GROUP} \
+  --no-attestation
 ```
 
-The script generates a signing keypair automatically. To reuse an existing keypair:
+Set the kubeconfig and verify the cluster:
 
 ```bash
-./scripts/build-cvm-image.sh \
-    --driver-source cvm-kernel-module/scone_enclave \
-    --signing-key kernel-signing.key \
-    --signing-cert kernel-signing.der \
-    --gallery-name sconeGallery \
-    --resource-group <resource-group> \
-    --subscription-id <subscription-id>
-```
-
-When the script finishes, it prints the gallery image ID. Save it for the next steps.
-
-### Add the Image to Additional Regions
-
-The gallery image is created in a single region. To deploy clusters in other regions, replicate it:
-
-```bash
-az sig image-version update \
-    -g <resource-group> -r sconeGallery -i ubuntu-cvm-scone -e 1.0.0 \
-    --target-regions "<region-1>" "<region-2>"
-```
-
-### Create the scone-config.json File
-
-Create a configuration file referencing the gallery image:
-
-```json
-{
-    "image": "/subscriptions/<sub-id>/resourceGroups/<rg>/providers/Microsoft.Compute/galleries/sconeGallery/images/ubuntu-cvm-scone/versions/1.0.0"
-}
-```
-
-For full details on the image build pipeline, see [BUILD-CVM-IMAGE.md](https://github.com/scontain-gmbh/kubectl-scone-azure/blob/laerson/workshop/docs/BUILD-CVM-IMAGE.md).
-
-## 2. Build the KBS Image
-
-The Key Broker Service (KBS) handles platform attestation. It verifies that cluster nodes run inside genuine TDX VMs before releasing secrets.
-
-### Clone and Build
-
-```bash
-git clone https://github.com/scontain-gmbh/trustee.git
-cd trustee
-
-DOCKER_BUILDKIT=1 docker build -t kbs:azure-vtpm . -f kbs/docker/Dockerfile
-```
-
-### Push to a Registry
-
-```bash
-docker tag kbs:azure-vtpm ghcr.io/<your-org>/kbs:latest
-docker push ghcr.io/<your-org>/kbs:latest
-```
-
-### Verify the Build
-
-```bash
-docker run -d --name kbs-test -p 8080:8080 kbs:azure-vtpm
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/kbs/v0/
-docker rm -f kbs-test
-```
-
-A 200 response confirms the image is working.
-
-For full details on the KBS build, see [BUILD-KBS.md](https://github.com/scontain-gmbh/kubectl-scone-azure/blob/laerson/workshop/docs/BUILD-KBS.md).
-
-## 3. Set Azure Subscription Variables
-
-Use `tplenv` to configure the Azure subscription variables:
-
-```bash
-eval $(tplenv --file workshop/azure-subscription.md --create-values-file --eval --output /dev/null)
-```
-
-## 4. Create the TDX Cluster
-
-### Create a 2-Node Cluster with Attestation
-
-```bash
-kubectl-scone_azure create --tdx \
-  --node-count 2 \
-  --scone-config ./scone-config.json \
-  --deploy-kbs \
-  --kbs-image ghcr.io/<your-org>/kbs:latest \
-  --kube-config ./kubeconfig-tdx.yaml \
-  --credentials "$AZURE_CREDENTIALS_PATH" \
-  --rg "$AZURE_RESOURCE_GROUP" \
-  -v
-```
-
-This provisions 2 Azure CVM nodes running inside TDX VMs, deploys KBS to the control plane, and performs platform attestation on each worker node. The tool automatically selects the cheapest available TDX VM size and region that has quota.
-
-> **Note:** Attestation failures can be transient. Azure VMs may land on physical hosts whose TDX platform configuration (FMSPC) is not yet recognized by the KBS attestation verifier, causing an `RCAR handshake Attest failed` error. Retrying the cluster creation typically resolves this, as the new VM is placed on a different host. If attestation is not required for your use case, use `--no-attestation` to skip it entirely.
-
-### Alternative: Single Node Without Attestation
-
-If you do not need to demonstrate platform attestation, create a simpler single-node cluster:
-
-```bash
-kubectl-scone_azure create --tdx \
-  --node-count 1 \
-  --scone-config ./scone-config.json \
-  --no-attestation \
-  --kube-config ./kubeconfig-tdx.yaml \
-  --credentials "$AZURE_CREDENTIALS_PATH" \
-  --rg "$AZURE_RESOURCE_GROUP" \
-  -v
-```
-
-### Verify the Cluster
-
-```bash
-export KUBECONFIG=./kubeconfig-tdx.yaml
+export KUBECONFIG=$(realpath ${KUBECONFIG_PATH})
 kubectl get nodes
+retry-spinner --timeout 300 --wait 10 -- kubectl wait --for=condition=Ready nodes --all --timeout=10s
 ```
 
-Both nodes should show `Ready` status. To verify the custom kernel driver is available:
+## 4. Install SCONE Platform (SGX Plugin ${SGX_PLUGIN_VERSION})
+
+Download the operator controller script:
 
 ```bash
-kubectl debug node/<node-name> -it --image=ubuntu -- \
-    ls -la /dev/scone_enclave
+mkdir -p /tmp/SCONE_OPERATOR_CONTROLLER
+cd /tmp/SCONE_OPERATOR_CONTROLLER
+curl -fsSL "https://raw.githubusercontent.com/scontain/SH/master/${SGX_PLUGIN_VERSION}/operator_controller" > operator_controller
+curl -fsSL "https://raw.githubusercontent.com/scontain/SH/master/${SGX_PLUGIN_VERSION}/operator_controller.asc" > operator_controller.asc
+chmod a+x operator_controller
+echo "Downloaded operator_controller for version ${SGX_PLUGIN_VERSION}"
 ```
 
-## 5. Deploy the SCONE Platform
-
-Install the SCONE operator and all required tools:
+Run the operator controller to install the SGX plugin, SCONE operator, and LAS. We pin `CERT_MANAGER` to avoid pulling a version incompatible with the cluster's Kubernetes release:
 
 ```bash
-./scripts/prerequisite_check.sh
+export CERT_MANAGER="https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER_VERSION}/cert-manager.yaml"
+bash operator_controller \
+  --set-version ${SGX_PLUGIN_VERSION} \
+  --reconcile --update --plugin --verbose \
+  --dcap-api "${DCAP_KEY}" \
+  --secret-operator \
+  --username ${REGISTRY_USER} \
+  --access-token ${REGISTRY_TOKEN} \
+  --email ${REGISTRY_EMAIL}
 ```
 
-### Connect to the SGX Cluster's CAS
-
-CAS cannot run on TDX nodes, so we reuse the CAS instance from the SGX cluster. This requires exposing CAS on the SGX cluster via a LoadBalancer and creating a proxy service in the TDX cluster.
-
-> **Note:** The CAS service in the SGX cluster is managed by the SCONE operator, so we cannot change its type directly. Instead, we create a separate LoadBalancer service that targets the same CAS pods.
-
-**On the SGX cluster**, create a LoadBalancer service for CAS:
+Wait for the SGX plugin and LAS to become healthy:
 
 ```bash
-kubectl --kubeconfig <path-to-sgx-kubeconfig> apply -f - <<'EOF'
-apiVersion: v1
-kind: Service
-metadata:
-  name: cas-external
-  namespace: default
-spec:
-  type: LoadBalancer
-  selector:
-    app: cas
-    app.kubernetes.io/instance: cas
-    app.kubernetes.io/name: cas
-  ports:
-    - name: client
-      port: 8081
-      targetPort: client
-    - name: enclave
-      port: 18765
-      targetPort: enclave
-EOF
+retry-spinner --timeout 600 --wait 15 -- sh -c 'kubectl get sgx -o jsonpath="{.items[0].status.state}" | grep -q HEALTHY'
+echo "SGX plugin is HEALTHY"
+retry-spinner --timeout 600 --wait 15 -- sh -c 'kubectl get las -o jsonpath="{.items[0].status.state}" | grep -q HEALTHY'
+echo "LAS is HEALTHY"
 ```
 
-Wait for the external IP to be assigned:
+Return to the repo root directory (we changed to `/tmp` for the download):
 
 ```bash
-kubectl --kubeconfig <path-to-sgx-kubeconfig> get svc cas-external -n default -w
+cd "${REPO_ROOT}"
 ```
 
-Once the `EXTERNAL-IP` column shows an IP address (not `<pending>`), save it:
+## 5. Run Demos
+
+Export the CAS variables so they override per-demo defaults (most demos default to a local CAS):
 
 ```bash
-export CAS_EXTERNAL_IP=$(kubectl --kubeconfig <path-to-sgx-kubeconfig> \
-    get svc cas-external -n default -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-echo "CAS external IP: $CAS_EXTERNAL_IP"
+export CAS_NAME=${CAS_NAME}
+export CAS_NAMESPACE=${CAS_NAMESPACE}
 ```
 
-**On the TDX cluster**, create a Service and Endpoints that point to the SGX cluster's CAS. This makes `cas.default` resolve to the external CAS in the TDX cluster:
+Run all 6 demos:
 
 ```bash
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: Service
-metadata:
-  name: cas
-  namespace: default
-spec:
-  ports:
-    - name: client
-      port: 8081
-      targetPort: 8081
-    - name: enclave
-      port: 18765
-      targetPort: 18765
----
-apiVersion: v1
-kind: Endpoints
-metadata:
-  name: cas
-  namespace: default
-subsets:
-  - addresses:
-      - ip: "${CAS_EXTERNAL_IP}"
-    ports:
-      - name: client
-        port: 8081
-      - name: enclave
-        port: 18765
-EOF
+./scripts/run-all-scripts.sh
 ```
 
-Verify the TDX cluster can reach CAS:
+## 6. Cleanup (Optional)
+
+To delete the cluster, note the cluster name and resource group from the creation output above, then run:
 
 ```bash
-scone cas attest ${CAS_EXTERNAL_IP}:8081 \
-    --accept-configuration-needed \
-    --accept-group-out-of-date \
-    --accept-sw-hardening-needed \
-    --mrsigner 195e5a6df987d6a515dd083750c1ea352283f8364d3ec9142b0d593988c6ed2d \
-    --isvprodid 41316 \
-    --isvsvn 5
+echo "To delete the cluster, run:"
+echo "kubectl scone-azure delete --cluster-name <CLUSTER_NAME> --rg <RESOURCE_GROUP> --credentials ${AZURE_CREDENTIALS}"
 ```
-
-## 6. Run the Demos
-
-Clone the demos repository:
-
-```bash
-git clone https://github.com/scontain/scone-td-build-demos.git
-cd scone-td-build-demos
-```
-
-### Run All Demos
-
-Each demo uses `tplenv` to prompt for the required environment variables (image registry, credentials, etc.). For TDX mode, set `CVM_MODE` to `--cvm` and `SCONE_ENCLAVE` to `--scone-enclave` when prompted. Run all CVM demos sequentially:
-
-```bash
-./scripts/run-all-cvm-scripts.sh
-```
-
-This runs the hello-world, configmap, and web-server demos in CVM mode. Each demo builds a native application, sconifies it with `scone-td-build`, and deploys it to the cluster.
-
-## Cleanup
-
-Delete the cluster when done:
-
-```bash
-kubectl-scone_azure delete \
-  --cluster-name <cluster-name> \
-  --rg "$AZURE_RESOURCE_GROUP" \
-  --credentials "$AZURE_CREDENTIALS_PATH" \
-  -v
-```
-
-Replace `<cluster-name>` with the name shown during creation (e.g., `scone-9cc7dd39`).
