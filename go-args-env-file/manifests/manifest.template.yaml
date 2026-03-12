@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  labels:
+    app: go-args-env-file
+data:
+  configs.yaml: |
+    # Example configuration
+    app:
+      name: go-args-env-file
+      log_level: info
+    feature_flags:
+      enable_debug: false
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+  labels:
+    app: go-args-env-file
+type: Opaque
+stringData:
+  secrets: |
+    DB_PASSWORD=changeme
+    API_KEY=replace-with-real-key
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-args-env-file
+  labels:
+    app: go-args-env-file
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-args-env-file
+  template:
+    metadata:
+      labels:
+        app: go-args-env-file
+    spec:
+      volumes:
+        - name: config-volume
+          configMap:
+            name: app-config
+        - name: secrets-volume
+          secret:
+            secretName: app-secrets
+      imagePullSecrets:
+        - name: ${IMAGE_PULL_SECRET_NAME}
+      containers:
+        - name: go-args-env-file
+          image: ${DEMO_IMAGE}
+          imagePullPolicy: IfNotPresent
+          args:
+            - "arg1"
+            - "arg2"
+          env:
+            - name: APP_ENV
+              value: "production"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config/configs.yaml
+              subPath: configs.yaml
+              readOnly: true
+            - name: secrets-volume
+              mountPath: /config/secrets
+              subPath: secrets
+              readOnly: true
+      restartPolicy: Always
