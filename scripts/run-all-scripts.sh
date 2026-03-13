@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Generated file. Do not edit manually.
 
 set -euo pipefail
 
@@ -9,5 +10,6 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "${script_dir}/web-server.sh"
 "${script_dir}/network-policy.sh"
 "${script_dir}/flask-redis.sh"
+"${script_dir}/flask-redis-netshield.sh"
 "${script_dir}/flask-redis-netshield.sh"
 "${script_dir}/go-args-env-file.sh"

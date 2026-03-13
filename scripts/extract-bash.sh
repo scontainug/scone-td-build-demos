@@ -15,6 +15,7 @@ Modes:
 
 Options:
   --docs-pe    Generate a docs runner script that uses pe for each code line.
+  -y           Overwrite an existing output script without confirmation.
   --help       Show this help message and exit.
 
 Examples:
@@ -25,8 +26,13 @@ USAGE
 }
 
 mode="default"
+assume_yes=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    -y)
+      assume_yes=true
+      shift
+      ;;
     --help)
       show_help
       exit 0
@@ -66,9 +72,86 @@ fi
 TMP_OUTPUT=$(mktemp)
 trap 'rm -f "$TMP_OUTPUT"' EXIT
 
+confirm_overwrite() {
+  local target="$1"
+  local reply
+
+  if $assume_yes || [[ ! -e "$target" ]]; then
+    return 0
+  fi
+
+  if [[ ! -t 0 ]]; then
+    echo "Error: Refusing to overwrite '$target' without confirmation. Re-run with -y." >&2
+    exit 1
+  fi
+
+  read -r -p "Overwrite '$target'? [y/N] " reply
+  if [[ ! "$reply" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+    echo "Skipped '$target'."
+    exit 0
+  fi
+}
+
+write_generated_help() {
+  local output_file="$1"
+  local source_file="$2"
+  local script_mode="$3"
+  local description
+
+  if [[ "$script_mode" == "docs-pe" ]]; then
+    description="Runs a demo-style shell script generated from ${source_file}."
+  else
+    description="Runs shell commands extracted from ${source_file}."
+  fi
+
+  {
+    echo 'show_help() {'
+    echo '  cat <<USAGE'
+    echo 'Usage: $0 [--help]'
+    echo
+    echo "$description"
+    echo
+    echo 'Options:'
+    echo '  --help  Show this help message and exit.'
+    echo 'USAGE'
+    echo '}'
+    echo
+    echo 'while [[ $# -gt 0 ]]; do'
+    echo '  case "$1" in'
+    echo '    --help)'
+    echo '      show_help'
+    echo '      exit 0'
+    echo '      ;;'
+    echo '    --)'
+    echo '      shift'
+    echo '      break'
+    echo '      ;;'
+    echo '    -*)'
+    echo '      echo "Error: Unknown option '\''$1'\''." >&2'
+    echo '      show_help >&2'
+    echo '      exit 1'
+    echo '      ;;'
+    echo '    *)'
+    echo '      echo "Error: This script does not accept positional arguments." >&2'
+    echo '      show_help >&2'
+    echo '      exit 1'
+    echo '      ;;'
+    echo '  esac'
+    echo 'done'
+    echo
+    echo 'if [[ $# -gt 0 ]]; then'
+    echo '  echo "Error: This script does not accept positional arguments." >&2'
+    echo '  show_help >&2'
+    echo '  exit 1'
+    echo 'fi'
+    echo
+  } >>"$output_file"
+}
+
 write_default_header() {
   {
     echo "#!/usr/bin/env bash"
+    echo "# Generated file. Do not edit manually."
     echo
     echo "set -euo pipefail"
     echo
@@ -78,11 +161,14 @@ write_default_header() {
     echo 'CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:---force}"'
     echo
   } >>"$TMP_OUTPUT"
+
+  write_generated_help "$TMP_OUTPUT" "$INPUT_FILE" "default"
 }
 
 write_docs_header() {
   cat >>"$TMP_OUTPUT" <<'EOF'
 #!/usr/bin/env bash
+# Generated file. Do not edit manually.
 
 set -Eeuo pipefail
 
@@ -135,6 +221,8 @@ export PS1="$PROMPT"
 stty cols "$COLUMNS" rows "$LINES"
 
 EOF
+
+  write_generated_help "$TMP_OUTPUT" "$INPUT_FILE" "docs-pe"
 }
 
 escape_single_quotes() {
@@ -269,9 +357,10 @@ flush_markdown
 flush_code_block
 
 if [[ -n "$OUTPUT_FILE" ]]; then
-  mv "$TMP_OUTPUT" "$OUTPUT_FILE"
-  chmod +x "$OUTPUT_FILE"
-  echo "✅ Script written to '$OUTPUT_FILE' and made executable."
+  confirm_overwrite "$OUTPUT_FILE"
+  command mv -f "$TMP_OUTPUT" "$OUTPUT_FILE"
+  chmod 0555 "$OUTPUT_FILE"
+  echo "✅ Script written to '$OUTPUT_FILE', made executable, and set read-only."
 else
   cat "$TMP_OUTPUT"
 fi

@@ -39,6 +39,10 @@ This example shows how to manage and access configuration data in Kubernetes wit
 
 Follow the [Setup environment](https://github.com/scontain/scone) guide. The easiest option is usually the Kubernetes-based setup in [k8s.md](https://github.com/scontain/scone/blob/main/k8s.md).
 
+```bash
+cd go-args-env-file
+```
+
 ---
 
 ## 3. Set Up Environment Variables
@@ -79,7 +83,7 @@ docker push ${DEMO_IMAGE}
 
 Alternatively, use the Makefile for a local build:
 
-```bash
+```
 # Native build (outputs to bin/go-args-env-file)
 make build
 
@@ -107,8 +111,8 @@ make build GOOS=linux GOARCH=amd64
 `tplenv` substitutes environment variables into the template files and writes the final manifests:
 
 ```bash
-tplenv --file manifest.template.yaml --create-values-file --output manifests/manifest.yaml --indent
-tplenv --file scone.template.yaml    --create-values-file --output manifests/scone.yaml    --indent
+tplenv --file manifests/manifest.template.yaml --create-values-file --output manifests/manifest.yaml --indent
+tplenv --file manifests/scone.template.yaml    --create-values-file --output manifests/scone.yaml    --indent
 ```
 
 Before applying, confirm that image values were substituted correctly.

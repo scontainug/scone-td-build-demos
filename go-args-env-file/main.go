@@ -31,9 +31,9 @@ func main() {
 	readAndPrintFile("/config/configs.yaml", "Config File")
 	readAndPrintFile("/config/secrets", "Secrets File")
 
-	// --- Sleep for 1 hour (interrupt-aware) ---
-	fmt.Println("\nSleeping for 1 minute to keep the container alive...")
-	timer := time.NewTimer(1 * time.Minute)
+	// --- Sleep for 10 seconds (interrupt-aware) ---
+	fmt.Println("\nSleeping for 10 seconds to keep the container alive...")
+	timer := time.NewTimer(10 * time.Second)
 	defer timer.Stop()
 
 	// Catch interrupt/termination like Java's InterruptedException

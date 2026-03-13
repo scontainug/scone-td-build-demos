@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Generated file. Do not edit manually.
 
 set -euo pipefail
 
@@ -6,6 +7,46 @@ VIOLET='\033[38;5;141m'
 ORANGE='\033[38;5;208m'
 RESET='\033[0m'
 CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:---force}"
+
+show_help() {
+  cat <<USAGE
+Usage: $0 [--help]
+
+Runs shell commands extracted from web-server/README.md.
+
+Options:
+  --help  Show this help message and exit.
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --help)
+      show_help
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      echo "Error: Unknown option '$1'." >&2
+      show_help >&2
+      exit 1
+      ;;
+    *)
+      echo "Error: This script does not accept positional arguments." >&2
+      show_help >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ $# -gt 0 ]]; then
+  echo "Error: This script does not accept positional arguments." >&2
+  show_help >&2
+  exit 1
+fi
 
 printf "${VIOLET}"
 printf '%s\n' '# Web Server Demo'

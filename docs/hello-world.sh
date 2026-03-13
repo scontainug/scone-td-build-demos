@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Generated file. Do not edit manually.
 
 set -Eeuo pipefail
 
@@ -49,6 +50,46 @@ export LC_ALL=C.UTF-8
 export COLUMNS LINES
 export PS1="$PROMPT"
 stty cols "$COLUMNS" rows "$LINES"
+
+show_help() {
+  cat <<USAGE
+Usage: $0 [--help]
+
+Runs a demo-style shell script generated from hello-world/README.md.
+
+Options:
+  --help  Show this help message and exit.
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --help)
+      show_help
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      echo "Error: Unknown option '$1'." >&2
+      show_help >&2
+      exit 1
+      ;;
+    *)
+      echo "Error: This script does not accept positional arguments." >&2
+      show_help >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ $# -gt 0 ]]; then
+  echo "Error: This script does not accept positional arguments." >&2
+  show_help >&2
+  exit 1
+fi
 
 printf "%b" "$LILAC"
 printf '%s\n' '# SCONE: Hello World'
