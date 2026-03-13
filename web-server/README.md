@@ -137,7 +137,8 @@ scone-td-build register \
   --push \
   -s ./storage.json \
   --enforce /app/web-server \
-  --version ${SCONE_VERSION}
+  --version ${SCONE_VERSION} \
+  ${CVM_MODE}
 ```
 
 ## 6. Test the Native Manifest (Optional)
@@ -177,9 +178,11 @@ scone-td-build apply \
   -s ./storage.json \
   --spol \
   --manifest-env SCONE_SYSLIBS=1 \
+  --manifest-env SCONE_PRODUCTION=0 \
   --manifest-env SCONE_VERSION=1 \
   --session-env SCONE_VERSION=1 \
-  --version ${SCONE_VERSION} -p
+  --version ${SCONE_VERSION} -p \
+  ${CVM_MODE} ${SCONE_ENCLAVE}
 ```
 
 ## 8. Deploy the Confidential Manifest

@@ -38,3 +38,4 @@ run_all_script="scripts/run-all-scripts.sh"
 } >"$run_all_script"
 
 chmod +x "$run_all_script"
+

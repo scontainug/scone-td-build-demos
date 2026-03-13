@@ -13,3 +13,4 @@ This file defines the environment variables used to configure this `configmap` e
    We recommend using confidential nodes and setting `${SCONE_ENCLAVE}` to `true`.
 9. We need to set the local signer: `${SIGNER}`
    This should already be preset to `scone self show-session-signing-key`
+

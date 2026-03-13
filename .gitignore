@@ -1,6 +1,6 @@
 scone_images.json
 Cargo.lock
-./Values.yaml
+/Values.yaml
 manifest.cleaned.yaml
 manifest.session.yaml
 manifest.yaml
@@ -10,3 +10,4 @@ flask-redis-demo.json
 manifest.prod.session.yaml
 manifest.prod.sanitized.yaml
 scone.yaml
+docs/superpowers/

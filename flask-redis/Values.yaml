@@ -1,12 +1,12 @@
 environment:
   IMAGE_PULL_SECRET_NAME: sconeapps
-  CAS_NAMESPACE: default
-  CAS_NAME: cas
+  CAS_NAMESPACE: cf
+  CAS_NAME: scone-cas
   SCONE_VERSION: 6.1.0-rc.0
   CVM_MODE: 'true'
   SCONE_ENCLAVE: 'true'
-  REGISTRY: registry.scontain.com
+  REGISTRY: ''
   REGISTRY_TOKEN: ''
   REGISTRY_USER: ''
-  IMAGE_NAME: registry.scontain.com/k8s-scone-images/flask-redis:latest
+  IMAGE_NAME: ''
   NAMESPACE: scone-tools

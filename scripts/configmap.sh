@@ -128,7 +128,7 @@ printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"'
 printf '%s\n' 'else'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."'
 printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})'
-printf '%s\n' '  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
+printf '%s\n' '  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server="$REGISTRY" --docker-username="$REGISTRY_USER" --docker-password="$REGISTRY_TOKEN"'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
@@ -137,7 +137,7 @@ if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
 else
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server="$REGISTRY" --docker-username="$REGISTRY_USER" --docker-password="$REGISTRY_TOKEN"
 fi
 
 printf "${VIOLET}"
@@ -168,18 +168,63 @@ printf '%s\n' 'Your containers should print content from the mounted ConfigMap f
 printf '%s\n' ''
 printf '%s\n' '## 8. Prepare and Apply the SCONE Manifest'
 printf '%s\n' ''
+printf '%s\n' 'First, attest the CAS to ensure we have the correct session encryption key:'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' 'kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is ok if you first attested using *scone cas attest ..."'
+printf "${RESET}"
+
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is ok if you first attested using *scone cas attest ..."
+
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' 'Then register the image and apply the manifest transformation:'
+printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'scone-td-build from -y manifests/scone.yaml'
+printf '%s\n' ''
+printf '%s\n' 'scone-td-build apply \'
+printf '%s\n' '    -f manifests/manifest.yaml \'
+printf '%s\n' '    -c ${CAS_NAME}.${CAS_NAMESPACE} \'
+printf '%s\n' '    -s ./configmap-example.json \'
+printf '%s\n' '    --output-manifest-file manifests/manifest.prod.sanitized.yaml \'
+printf '%s\n' '    --output-session-file manifests/manifest.prod.session.yaml \'
+printf '%s\n' '    --manifest-env SCONE_VERSION=1 \'
+printf '%s\n' '    --manifest-env SCONE_SYSLIBS=1 \'
+printf '%s\n' '    --manifest-env SCONE_PRODUCTION=0 \'
+printf '%s\n' '    --manifest-env SCONE_HEAP=2G \'
+printf '%s\n' '    --session-env SCONE_VERSION=1 \'
+printf '%s\n' '    --read-access ANY \'
+printf '%s\n' '    --spol \'
+printf '%s\n' '    -p'
 printf "${RESET}"
 
 scone-td-build from -y manifests/scone.yaml
+
+scone-td-build apply \
+    -f manifests/manifest.yaml \
+    -c ${CAS_NAME}.${CAS_NAMESPACE} \
+    -s ./configmap-example.json \
+    --output-manifest-file manifests/manifest.prod.sanitized.yaml \
+    --output-session-file manifests/manifest.prod.session.yaml \
+    --manifest-env SCONE_VERSION=1 \
+    --manifest-env SCONE_SYSLIBS=1 \
+    --manifest-env SCONE_PRODUCTION=0 \
+    --manifest-env SCONE_HEAP=2G \
+    --session-env SCONE_VERSION=1 \
+    --read-access ANY \
+    --spol \
+    -p
 
 printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' 'This command:'
 printf '%s\n' ''
+printf '%s\n' '- Registers and pushes the protected container image'
 printf '%s\n' '- Generates a SCONE session'
 printf '%s\n' '- Attaches the session to your manifest'
 printf '%s\n' '- Produces `manifests/manifest.prod.sanitized.yaml`'

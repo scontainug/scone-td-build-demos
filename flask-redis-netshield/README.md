@@ -202,14 +202,14 @@ POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \
 kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid
 ```
 
-Then send requests against `https://localhost:14996`:
+Then send requests against `http://localhost:14996` (the native app runs plain HTTP):
 
 ```bash
 # List all stored keys
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -s http://localhost:14996/keys
 
 # Create a client record
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -s -X POST http://localhost:14996/client/abc123 \
   -F fname=John \
   -F lname=Doe \
   -F address="123 Main St" \
@@ -219,16 +219,14 @@ curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time
   -F email="john@example.com"
 
 # Retrieve a client
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -s http://localhost:14996/client/abc123
 
 # Get credit score
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -s http://localhost:14996/score/abc123
 
 # Memory dump (debug)
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -s http://localhost:14996/memory
 ```
-
-> `-sk` skips TLS verification for the self-signed certificate.
 
 ---
 
@@ -267,6 +265,14 @@ Generate the SCONE config from its template, then run `scone-td-build` to produc
 tplenv --file scone.template.yaml --create-values-file --output scone.yaml
 rm flask-redis-demo.json || true
 scone-td-build from -y scone.yaml
+```
+
+Push the confidential images so the cluster can pull them:
+
+```bash
+grep -oP 'image: \K\S+' manifest.prod.sanitized.yaml | sort -u | while read -r img; do
+  docker push "${img}"
+done
 ```
 
 ---
@@ -316,14 +322,14 @@ POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \
 kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid
 ```
 
-Then send requests against `https://localhost:14996`:
+Then send requests against `http://localhost:14996` (the native app runs plain HTTP):
 
 ```bash
 # List all stored keys
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -s http://localhost:14996/keys
 
 # Create a client record
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -s -X POST http://localhost:14996/client/abc123 \
   -F fname=John \
   -F lname=Doe \
   -F address="123 Main St" \
@@ -333,16 +339,14 @@ curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time
   -F email="john@example.com"
 
 # Retrieve a client
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -s http://localhost:14996/client/abc123
 
 # Get credit score
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -s http://localhost:14996/score/abc123
 
 # Memory dump (debug)
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -s http://localhost:14996/memory
 ```
-
-> `-sk` skips TLS verification for the self-signed certificate.
 
 ---
 

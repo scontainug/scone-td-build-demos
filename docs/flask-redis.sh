@@ -233,7 +233,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - || echo "Patching of namespace ${NAMESPACE} failed -- ignoring this"
 EOF
 )"
 
@@ -320,11 +320,11 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
 EOF
 )"
 pe "$(cat <<'EOF'
-  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" --docker-server="$REGISTRY" --docker-username="$REGISTRY_USER" --docker-password="$REGISTRY_TOKEN"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -624,6 +624,25 @@ EOF
 )"
 pe "$(cat <<'EOF'
 scone-td-build from -y scone.yaml
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'Push the confidential images so the cluster can pull them:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+grep -oP 'image: \K\S+' manifest.prod.sanitized.yaml | sort -u | while read -r img; do
+EOF
+)"
+pe "$(cat <<'EOF'
+  docker push "${img}"
+EOF
+)"
+pe "$(cat <<'EOF'
+done
 EOF
 )"
 

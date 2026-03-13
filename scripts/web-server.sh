@@ -204,7 +204,8 @@ printf '%s\n' '  --destination-image ${DESTINATION_IMAGE_NAME} \'
 printf '%s\n' '  --push \'
 printf '%s\n' '  -s ./storage.json \'
 printf '%s\n' '  --enforce /app/web-server \'
-printf '%s\n' '  --version ${SCONE_VERSION}'
+printf '%s\n' '  --version ${SCONE_VERSION} \'
+printf '%s\n' '  ${CVM_MODE}'
 printf "${RESET}"
 
 scone-td-build register \
@@ -214,7 +215,8 @@ scone-td-build register \
   --push \
   -s ./storage.json \
   --enforce /app/web-server \
-  --version ${SCONE_VERSION}
+  --version ${SCONE_VERSION} \
+  ${CVM_MODE}
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -281,9 +283,11 @@ printf '%s\n' '  -c ${CAS_NAME}.${CAS_NAMESPACE} \'
 printf '%s\n' '  -s ./storage.json \'
 printf '%s\n' '  --spol \'
 printf '%s\n' '  --manifest-env SCONE_SYSLIBS=1 \'
+printf '%s\n' '  --manifest-env SCONE_PRODUCTION=0 \'
 printf '%s\n' '  --manifest-env SCONE_VERSION=1 \'
 printf '%s\n' '  --session-env SCONE_VERSION=1 \'
-printf '%s\n' '  --version ${SCONE_VERSION} -p'
+printf '%s\n' '  --version ${SCONE_VERSION} -p \'
+printf '%s\n' '  ${CVM_MODE} ${SCONE_ENCLAVE}'
 printf "${RESET}"
 
 scone-td-build apply \
@@ -292,9 +296,11 @@ scone-td-build apply \
   -s ./storage.json \
   --spol \
   --manifest-env SCONE_SYSLIBS=1 \
+  --manifest-env SCONE_PRODUCTION=0 \
   --manifest-env SCONE_VERSION=1 \
   --session-env SCONE_VERSION=1 \
-  --version ${SCONE_VERSION} -p
+  --version ${SCONE_VERSION} -p \
+  ${CVM_MODE} ${SCONE_ENCLAVE}
 
 printf "${VIOLET}"
 printf '%s\n' ''
