@@ -1,0 +1,43 @@
+apiVersion: scone.cloud/v1
+kind: Register
+metadata:
+  name: java-args-env-file-example
+spec:
+  protected_image: ${DEMO_IMAGE}
+  unprotected_image: ${DEMO_IMAGE}
+  destination_image: ${DESTINATION_IMAGE_NAME}
+  enforce: ["/opt/java/openjdk/bin/java"]
+  push_scone_image: true
+  version: ${SCONE_VERSION}
+  cvm: ${CVM_MODE}
+  manifest_env:
+    - {name: SCONE_VERSION, value: "1"}
+    - {name: SCONE_SYSLIBS, value: "1"}
+    - {name: SCONE_PRODUCTION, value: "0"}
+---
+apiVersion: scone.cloud/v1
+kind: Apply
+metadata:
+  name: java-args-env-file-example
+spec:
+  # Inline‑selection: pick *only* the Deployment
+  file:
+    - "manifests/manifest.yaml"
+  output_manifest_file: "manifests/manifest.prod.sanitized.yaml"
+  output_session_file: "manifests/manifest.prod.session.yaml"
+  cas_address:
+    address: ${CAS_NAME}.${CAS_NAMESPACE}
+  manifest_env:
+    - { name: SCONE_VERSION,  value: "1" }
+    - { name: SCONE_LOG,      value: "WARNING" }
+    - { name: SCONE_HEAP,     value: "6G" }
+    - { name: SCONE_ALLOW_DLOPEN, value: "2" }
+    - { name: SCONE_EDMM_MODE, value: "auto" }
+    - { name: SCONE_SYSLIBS, value: "1" }
+  session_env:
+    - { name: LD_LIBRARY_PATH, value: /opt/java/openjdk/lib/server:/opt/java/openjdk/lib:/opt/java/openjdk/../lib }
+    - { name: SCONE_METRICS, value: "prometheus_port:9999" }
+  permissive: true
+  spol: false
+  cvm: ${CVM_MODE}
+  scone_enclave: ${SCONE_ENCLAVE}
