@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: java-cli-env-config
+  namespace: ${NAMESPACE}
+data:
+  configs.yaml: |
+    key1: value1
+    key2: value2
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: java-cli-env-secret
+  namespace: ${NAMESPACE}
+type: Opaque
+stringData:
+  secrets: |
+    password: s3cr3t
+    my_db_encryption_key: top_secret_key
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: java-args-env-file
+  namespace: ${NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: java-args-env-file
+  template:
+    metadata:
+      labels:
+        app: java-args-env-file
+    spec:
+      containers:
+        - name: java-cli-env
+          image: ${DEMO_IMAGE}
+          imagePullPolicy: Always
+          command: ["/opt/java/openjdk/bin/java", "Main"]
+          args: ["arg1", "arg2"]
+          ports:
+          - containerPort: 9999
+            name: metrics
+            protocol: TCP
+          volumeMounts:
+            - name: config-volume
+              mountPath: /config/configs.yaml
+              subPath: configs.yaml
+            - name: secret-volume
+              mountPath: /config/secrets
+              subPath: secrets
+      imagePullSecrets:
+        - name: ${IMAGE_PULL_SECRET_NAME}
+      volumes:
+        - name: config-volume
+          configMap:
+            name: java-cli-env-config
+        - name: secret-volume
+          secret:
+            secretName: java-cli-env-secret

@@ -1,0 +1,13 @@
+environment:
+  DEMO_IMAGE: registry.scontain.com/k8s-scone-images/java-args-env-file:native
+  DESTINATION_IMAGE_NAME: registry.scontain.com/k8s-scone-images/java-args-env-file:protected
+  REGISTRY: ''
+  REGISTRY_TOKEN: ''
+  REGISTRY_USER: ''
+  IMAGE_PULL_SECRET_NAME: sconeapps
+  SCONE_VERSION: 6.1.0-rc.0
+  CAS_NAMESPACE: default
+  CAS_NAME: cas
+  CVM_MODE: 'true'
+  SCONE_ENCLAVE: 'true'
+  NAMESPACE: java-demo
