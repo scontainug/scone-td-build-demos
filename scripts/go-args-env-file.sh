@@ -144,11 +144,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' 'kubectl apply -f manifests/manifest.yaml'
-printf '%s\n' 'retry-spinner --retries 10 --wait 2 -- kubectl logs job/go-args-env-file --follow'
+printf '%s\n' 'retry-spinner --retries 10 --wait 2 -- kubectl logs deployment/go-args-env-file --follow'
 printf "${RESET}"
 
 kubectl apply -f manifests/manifest.yaml
-retry-spinner --retries 10 --wait 2 -- kubectl logs job/go-args-env-file --follow
+retry-spinner --retries 10 --wait 2 -- kubectl logs deployment/go-args-env-file
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -204,10 +204,10 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'retry-spinner -- kubectl logs job/go-args-env-file --follow'
+printf '%s\n' 'retry-spinner -- kubectl logs deployment/go-args-env-file --follow'
 printf "${RESET}"
 
-retry-spinner -- kubectl logs job/go-args-env-file --follow
+retry-spinner -- kubectl logs deployment/go-args-env-file --follow
 
 printf "${VIOLET}"
 printf '%s\n' ''

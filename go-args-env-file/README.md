@@ -142,7 +142,7 @@ Apply the manifest and follow the pod logs to confirm the app prints arguments, 
 
 ```bash
 kubectl apply -f manifests/manifest.yaml
-retry-spinner --retries 10 --wait 2 -- kubectl logs job/go-args-env-file --follow
+retry-spinner --retries 10 --wait 2 -- kubectl logs deployment/go-args-env-file
 ```
 
 Your container should print the command-line args, all environment variables, the contents of `/config/configs.yaml`, and `/config/secrets`.
@@ -186,7 +186,7 @@ kubectl apply -f manifests/manifest.prod.sanitized.yaml
 ## 10. View Logs
 
 ```bash
-retry-spinner -- kubectl logs job/go-args-env-file --follow
+retry-spinner -- kubectl logs deployment/go-args-env-file --follow
 ```
 
 ---

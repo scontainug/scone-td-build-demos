@@ -55,7 +55,7 @@ spec:
       containers:
         - name: go-args-env-file
           image: ${DEMO_IMAGE}
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           args:
             - "arg1"
             - "arg2"

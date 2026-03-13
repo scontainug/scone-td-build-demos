@@ -6,7 +6,7 @@ spec:
   protected_image: ${DEMO_IMAGE}
   unprotected_image: ${DEMO_IMAGE}
   destination_image: ${DESTINATION_IMAGE_NAME}
-  enforce: ["/go-args-env-file"]
+  enforce: ["/usr/local/bin/go-args-env-file"]
   push_scone_image: true
   version: ${SCONE_VERSION}
   cvm: ${CVM_MODE}

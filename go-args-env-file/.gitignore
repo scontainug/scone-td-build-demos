@@ -1,0 +1,6 @@
+Values.yaml
+manifest.yaml
+manifest.prod.session.yaml
+manifest.prod.sanitized.yaml
+go-args-env-file-example.json
+scone.yaml
