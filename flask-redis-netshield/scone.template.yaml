@@ -9,7 +9,7 @@ spec:
   enforce: ["/usr/local/bin/redis-server"]
   push_scone_image: true
   cvm: ${CVM_MODE}
-  version: ${SCONE_VERSION}
+  version: ${SCONE_RUNTIME_VERSION}
   manifest_env:
     - {name: SCONE_VERSION, value: "1"}
     - {name: SCONE_SYSLIBS, value: "1"}
@@ -26,7 +26,7 @@ spec:
   enforce: ["/usr/local/bin/python"]
   push_scone_image: true
   cvm: ${CVM_MODE}
-  version: ${SCONE_VERSION}
+  version: ${SCONE_RUNTIME_VERSION}
   manifest_env:
     - {name: SCONE_VERSION, value: "1"}
     - {name: SCONE_SYSLIBS, value: "1"}

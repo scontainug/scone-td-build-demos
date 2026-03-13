@@ -10,7 +10,7 @@
    You need to use a different image name since you should 
    not have push rights to this repo.
 3. The name of the pull secret for both the native and confidential container images is stored in `${IMAGE_PULL_SECRET_NAME}`.
-4. The SCONE version is stored in `${SCONE_VERSION}`.
+4. The SCONE version is stored in `${SCONE_RUNTIME_VERSION}`.
    The recommended value is `6.1.0-rc.0`.
 5. The CAS runs in Kubernetes namespace `${CAS_NAMESPACE}`.
 6. The CAS name is stored in `${CAS_NAME}`.

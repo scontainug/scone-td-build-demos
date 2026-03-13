@@ -8,7 +8,7 @@ spec:
   destination_image: ${DESTINATION_IMAGE_NAME}
   enforce: ["/usr/local/bin/folder-reader"]
   push_scone_image: true
-  version: ${SCONE_VERSION}
+  version: ${SCONE_RUNTIME_VERSION}
   cvm: ${CVM_MODE}
   manifest_env:
     - {name: SCONE_VERSION, value: "1"}

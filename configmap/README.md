@@ -31,7 +31,7 @@ Default values are stored in `Values.yaml`. `tplenv` asks whether to keep the de
 - `$DEMO_IMAGE` - Name of the native image to deploy
 - `$DESTINATION_IMAGE_NAME` - Name of the confidential image
 - `$IMAGE_PULL_SECRET_NAME` - Pull secret name (default: `sconeapps`)
-- `$SCONE_VERSION` - SCONE version to use (for example, `6.1.0-rc.0`)
+- `$SCONE_RUNTIME_VERSION` - SCONE version to use (for example, `6.1.0-rc.0`)
 - `$CAS_NAMESPACE` - CAS namespace (for example, `default`)
 - `$CAS_NAME` - CAS name (for example, `cas`)
 - `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX

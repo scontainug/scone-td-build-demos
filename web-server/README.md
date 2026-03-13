@@ -65,7 +65,7 @@ Defaults are stored in `Values.yaml`. `tplenv` asks whether to keep them and set
 - `$IMAGE_NAME` - Name of the native `web-server` image
 - `$DESTINATION_IMAGE_NAME` - Name of the confidential image
 - `$IMAGE_PULL_SECRET_NAME` - Pull secret name (default: `sconeapps`)
-- `$SCONE_VERSION` - SCONE version to use (for example, `6.1.0-rc.0`)
+- `$SCONE_RUNTIME_VERSION` - SCONE version to use (for example, `6.1.0-rc.0`)
 - `$CAS_NAMESPACE` - CAS namespace (for example, `default`)
 - `$CAS_NAME` - CAS name (for example, `cas`)
 - `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX
@@ -137,7 +137,7 @@ scone-td-build register \
   --push \
   -s ./storage.json \
   --enforce /app/web-server \
-  --version ${SCONE_VERSION}
+  --version ${SCONE_RUNTIME_VERSION}
 ```
 
 ## 6. Test the Native Manifest (Optional)
@@ -179,7 +179,7 @@ scone-td-build apply \
   --manifest-env SCONE_SYSLIBS=1 \
   --manifest-env SCONE_VERSION=1 \
   --session-env SCONE_VERSION=1 \
-  --version ${SCONE_VERSION} -p
+  --version ${SCONE_RUNTIME_VERSION} -p
 ```
 
 ## 8. Deploy the Confidential Manifest

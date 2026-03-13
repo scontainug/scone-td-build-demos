@@ -123,7 +123,7 @@ If attestation fails, inspect the command output for detected vulnerabilities an
 Register the image for confidential execution:
 
 ```bash
-scone-td-build register --protected-image $IMAGE_NAME --unprotected-image rust:latest --manifest-env SCONE_PRODUCTION=0 -s ./storage.json --destination-image ${DESTINATION_IMAGE_NAME} --push --version ${SCONE_VERSION} ${CVM_MODE}
+scone-td-build register --protected-image $IMAGE_NAME --unprotected-image rust:latest --manifest-env SCONE_PRODUCTION=0 -s ./storage.json --destination-image ${DESTINATION_IMAGE_NAME} --push --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE}
 ```
 
 This creates a protected image (or uses `--destination-image` if provided) and decouples your deployment from upstream image changes.
