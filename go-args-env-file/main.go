@@ -36,13 +36,14 @@ func main() {
 	timer := time.NewTimer(10 * time.Second)
 	defer timer.Stop()
 
-	// Catch interrupt/termination like Java's InterruptedException
+	// Catch interrupt/termination
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	select {
 	case <-timer.C:
-		// Slept the full hour
+		// Sleep timeout expired, continue to exit normally
+		fmt.Println("Sleep completed.")
 	case sig := <-sigCh:
 		// Report interruption to stderr (matches Java's System.err)
 		fmt.Fprintf(os.Stderr, "Sleep interrupted: %v\n", sig)

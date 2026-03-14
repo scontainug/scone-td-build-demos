@@ -152,13 +152,15 @@ fi
 
 ## 7. Deploy the Native App
 
-Apply the manifest and follow the pod logs to confirm the app prints arguments, environment variables, and the contents of the ConfigMap and Secret files:
+Apply the manifest, wait for the job to complete, and inspect its logs to confirm the app prints arguments, environment variables, and the contents of the ConfigMap and Secret files:
 
 ```bash
 # Apply the Kubernetes manifest.
 kubectl apply -f manifests/manifest.yaml
-# Retry the wrapped command until it succeeds or reaches the retry limit.
-retry-spinner --retries 10 --wait 2 -- kubectl logs deployment/go-args-env-file
+# Wait for the Kubernetes resource to reach the expected state.
+kubectl wait --for=condition=complete job/go-args-env-file --timeout=240s
+# Show logs from the Kubernetes workload.
+kubectl logs job/go-args-env-file
 ```
 
 Your container should print the command-line args, all environment variables, the contents of `/config/configs.yaml`, and `/config/secrets`.
@@ -198,6 +200,8 @@ This command:
 ```bash
 # Apply the Kubernetes manifest.
 kubectl apply -f manifests/manifest.prod.sanitized.yaml
+# Wait for the Kubernetes resource to reach the expected state.
+kubectl wait --for=condition=complete job/go-args-env-file --timeout=300s
 ```
 
 ---
@@ -205,8 +209,8 @@ kubectl apply -f manifests/manifest.prod.sanitized.yaml
 ## 10. View Logs
 
 ```bash
-# Retry the wrapped command until it succeeds or reaches the retry limit.
-retry-spinner -- kubectl logs deployment/go-args-env-file --follow
+# Show logs from the Kubernetes workload.
+kubectl logs job/go-args-env-file
 ```
 
 ---
@@ -227,7 +231,7 @@ kubectl delete -f manifests/manifest.prod.sanitized.yaml
 3. Reads and prints two files:
    - `/config/configs.yaml` — general configuration (mounted from a `ConfigMap`)
    - `/config/secrets` — secret values (mounted from a Kubernetes `Secret`)
-4. **Sleeps for 1 minute**, then exits. Handles `SIGINT` / `SIGTERM` gracefully (reports the signal to stderr and exits early).
+4. **Sleeps for about 10 seconds**, then exits. This is expected, so the Kubernetes workload is modeled as a `Job` rather than a long-running `Deployment`.
 
 ---
 

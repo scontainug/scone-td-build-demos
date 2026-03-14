@@ -6,8 +6,6 @@ environment:
   CVM_MODE: 'true'
   SCONE_ENCLAVE: 'true'
   REGISTRY: registry.scontain.com
-  REGISTRY_TOKEN: ''
-  REGISTRY_USER: ''
   IMAGE_NAME: registry.scontain.com/k8s-scone-images/flask-redis:latest
   NAMESPACE: scone-tools
   SIGNER: |-

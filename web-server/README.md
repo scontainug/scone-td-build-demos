@@ -204,6 +204,7 @@ scone-td-build apply \
   --manifest-env SCONE_SYSLIBS=1 \
   --manifest-env SCONE_VERSION=1 \
   --session-env SCONE_VERSION=1 \
+  --output-manifest-file manifest.sanitized.yaml \
   --version ${SCONE_RUNTIME_VERSION} -p
 ```
 
@@ -211,7 +212,7 @@ scone-td-build apply \
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.cleaned.yaml
+kubectl apply -f manifest.sanitized.yaml
 ```
 
 For the next step, you need a Kubernetes cluster with SGX resources and a running LAS.
@@ -243,7 +244,7 @@ retry-spinner -- curl http://localhost:8000/gen
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifest.cleaned.yaml
+kubectl delete -f manifest.sanitized.yaml
 # Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-8000.pid) || true
 # Remove `/tmp/pf-8000.pid` if it exists.

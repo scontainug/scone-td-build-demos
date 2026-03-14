@@ -7,6 +7,4 @@ environment:
   CVM_MODE: --cvm
   SCONE_ENCLAVE: --scone-enclave
   REGISTRY: registry.scontain.com
-  REGISTRY_TOKEN: ''
-  REGISTRY_USER: ''
   SCONE_RUNTIME_VERSION: 6.1.0-rc.0

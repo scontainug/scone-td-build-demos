@@ -244,7 +244,48 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' '## 4. Build and Register the Image'
+printf '%s\n' '## 4. Create a Pull Secret'
+printf '%s\n' ''
+printf '%s\n' 'If the pull secret does not exist yet, create it using registry credentials.'
+printf '%s\n' ''
+printf '%s\n' '- `$REGISTRY` - Registry hostname (default: `registry.scontain.com`)'
+printf '%s\n' '- `$REGISTRY_USER` - Registry login name'
+printf '%s\n' '- `$REGISTRY_TOKEN` - Registry pull token (see <https://sconedocs.github.io/registry/>)'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
+EOF
+)"
+pe "$(cat <<'EOF'
+else
+EOF
+)"
+pe "$(cat <<'EOF'
+  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
+EOF
+)"
+pe "$(cat <<'EOF'
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-})
+EOF
+)"
+pe "$(cat <<'EOF'
+  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' '## 5. Build and Register the Image'
 printf '%s\n' ''
 printf '%s\n' 'Build and push the native image:'
 printf '%s\n' ''
@@ -338,7 +379,7 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' '## 5. Test the Native Manifest (Optional)'
+printf '%s\n' '## 6. Test the Native Manifest (Optional)'
 printf '%s\n' ''
 printf '%s\n' 'Clean up previous runs first:'
 printf '%s\n' ''
@@ -458,7 +499,7 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' '## 6. Convert the Manifest'
+printf '%s\n' '## 7. Convert the Manifest'
 printf '%s\n' ''
 printf '%s\n' 'If you want to inspect registration details, see [register-image](../../../register-image.md).'
 printf '%s\n' ''
@@ -477,13 +518,14 @@ scone-td-build apply \
   --manifest-env SCONE_SYSLIBS=1 \
   --manifest-env SCONE_VERSION=1 \
   --session-env SCONE_VERSION=1 \
+  --output-manifest-file manifest.sanitized.yaml \
   --version ${SCONE_RUNTIME_VERSION} -p
 EOF
 )"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' '## 7. Deploy the Confidential Manifest'
+printf '%s\n' '## 8. Deploy the Confidential Manifest'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -492,7 +534,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifest.cleaned.yaml
+kubectl apply -f manifest.sanitized.yaml
 EOF
 )"
 
@@ -500,7 +542,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' 'For the next step, you need a Kubernetes cluster with SGX resources and a running LAS.'
 printf '%s\n' ''
-printf '%s\n' '## 8. Run the Demo'
+printf '%s\n' '## 9. Run the Demo'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -566,7 +608,7 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' '## 9. Uninstall the Demo'
+printf '%s\n' '## 10. Uninstall the Demo'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -575,7 +617,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifest.cleaned.yaml
+kubectl delete -f manifest.sanitized.yaml
 EOF
 )"
 pe "$(cat <<'EOF'

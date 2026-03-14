@@ -673,7 +673,7 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'Then send requests against `https://localhost:14996`:'
+printf '%s\n' 'Then send requests to `http://localhost:14996`. Note that we are only using `http` (and not yet `https`):'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -686,7 +686,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/keys
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -702,7 +702,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -X POST http://localhost:14996/client/abc123 \
   -F fname=John \
   -F lname=Doe \
   -F address="123 Main St" \
@@ -725,7 +725,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/client/abc123
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -741,7 +741,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/score/abc123
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -757,13 +757,12 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/memory
 EOF
 )"
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' '> `-sk` skips TLS verification for the self-signed certificate.'
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
@@ -857,7 +856,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-tplenv --file scone.template.yaml --create-values-file --output scone.yaml
+tplenv --file scone.template.yaml --create-values-file --output scone.yaml --indent
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -1044,7 +1043,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/keys
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -1060,7 +1059,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -X POST http://localhost:14996/client/abc123 \
   -F fname=John \
   -F lname=Doe \
   -F address="123 Main St" \
@@ -1083,7 +1082,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/client/abc123
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -1099,7 +1098,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/score/abc123
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -1115,13 +1114,11 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/memory
 EOF
 )"
 
 printf "%b" "$LILAC"
-printf '%s\n' ''
-printf '%s\n' '> `-sk` skips TLS verification for the self-signed certificate.'
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''

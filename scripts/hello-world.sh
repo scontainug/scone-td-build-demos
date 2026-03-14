@@ -326,11 +326,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Convert the native manifest into a confidential manifest.'
-printf '%s\n' 'scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --spol --manifest-env SCONE_VERSION=1 ${CVM_MODE} ${SCONE_ENCLAVE}'
+printf '%s\n' 'scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml ${CVM_MODE} ${SCONE_ENCLAVE}'
 printf "${RESET}"
 
 # Convert the native manifest into a confidential manifest.
-scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --spol --manifest-env SCONE_VERSION=1 ${CVM_MODE} ${SCONE_ENCLAVE}
+scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml ${CVM_MODE} ${SCONE_ENCLAVE}
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -340,7 +340,7 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Apply the Kubernetes manifest.'
-printf '%s\n' 'kubectl apply -f manifest.job.cleaned.yaml'
+printf '%s\n' 'kubectl apply -f manifest.job.sanitized.yaml'
 printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
 printf '%s\n' 'kubectl wait --for=condition=complete job/hello-world --timeout=300s'
 printf '%s\n' '# Show logs from the Kubernetes workload.'
@@ -348,7 +348,7 @@ printf '%s\n' 'kubectl logs job/hello-world --follow --pod-running-timeout=2m --
 printf "${RESET}"
 
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.job.cleaned.yaml
+kubectl apply -f manifest.job.sanitized.yaml
 # Wait for the Kubernetes resource to reach the expected state.
 kubectl wait --for=condition=complete job/hello-world --timeout=300s
 # Show logs from the Kubernetes workload.

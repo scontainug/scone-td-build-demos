@@ -2,3 +2,5 @@ certs/
 k8s/secret-flask-tls.yaml
 k8s/secret-redis-tls.yaml
 identity.pem
+manifest.prod.sanitized.yaml
+manifest.prod.session.yaml

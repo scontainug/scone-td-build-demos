@@ -8,5 +8,3 @@ environment:
   CVM_MODE: --cvm
   SCONE_ENCLAVE: --scone-enclave
   REGISTRY: registry.scontain.com
-  REGISTRY_TOKEN: ''
-  REGISTRY_USER: ''

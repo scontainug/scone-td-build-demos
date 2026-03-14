@@ -245,16 +245,16 @@ POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \
 kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid
 ```
 
-Then send requests against `https://localhost:14996`:
+Then send requests to `http://localhost:14996`. Note that we are only using `http` (and not yet `https`):
 
 ```bash
 # List all stored keys
 # Request the list of stored keys from the service.
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/keys
 
 # Create a client record
 # Create a test client record through the API.
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -X POST http://localhost:14996/client/abc123 \
   -F fname=John \
   -F lname=Doe \
   -F address="123 Main St" \
@@ -265,18 +265,17 @@ curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time
 
 # Retrieve a client
 # Fetch the stored client record from the API.
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/client/abc123
 
 # Get credit score
 # Request the credit score for the test client.
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/score/abc123
 
 # Memory dump (debug)
 # Request the debug memory dump from the API.
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/memory
 ```
 
-> `-sk` skips TLS verification for the self-signed certificate.
 
 ---
 
@@ -319,7 +318,7 @@ Generate the SCONE config from its template, then run `scone-td-build` to produc
 
 ```bash
 # Render the template with the selected values.
-tplenv --file scone.template.yaml --create-values-file --output scone.yaml
+tplenv --file scone.template.yaml --create-values-file --output scone.yaml --indent
 # Remove `flask-redis-demo.json` if it exists.
 rm flask-redis-demo.json || true
 # Generate the confidential image and sanitized manifest from the SCONE configuration.
@@ -387,11 +386,11 @@ Then send requests against `https://localhost:14996`:
 ```bash
 # List all stored keys
 # Request the list of stored keys from the service.
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/keys
 
 # Create a client record
 # Create a test client record through the API.
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -X POST http://localhost:14996/client/abc123 \
   -F fname=John \
   -F lname=Doe \
   -F address="123 Main St" \
@@ -402,18 +401,16 @@ curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time
 
 # Retrieve a client
 # Fetch the stored client record from the API.
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/client/abc123
 
 # Get credit score
 # Request the credit score for the test client.
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/score/abc123
 
 # Memory dump (debug)
 # Request the debug memory dump from the API.
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 http://localhost:14996/memory
 ```
-
-> `-sk` skips TLS verification for the self-signed certificate.
 
 ---
 

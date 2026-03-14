@@ -1,7 +1,7 @@
 scone_images.json
 Cargo.lock
 ./Values.yaml
-manifest.cleaned.yaml
+manifest.sanitized.yaml
 manifest.session.yaml
 manifest.yaml
 storage.json

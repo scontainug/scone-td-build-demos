@@ -27,17 +27,14 @@ stringData:
     API_KEY=replace-with-real-key
 
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
   name: go-args-env-file
   labels:
     app: go-args-env-file
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: go-args-env-file
+  backoffLimit: 0
   template:
     metadata:
       labels:
@@ -79,4 +76,4 @@ spec:
               mountPath: /config/secrets
               subPath: secrets
               readOnly: true
-      restartPolicy: Always
+      restartPolicy: Never

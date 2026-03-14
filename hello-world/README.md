@@ -154,14 +154,14 @@ Convert the native manifest into a sanitized confidential manifest:
 
 ```bash
 # Convert the native manifest into a confidential manifest.
-scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --spol --manifest-env SCONE_VERSION=1 ${CVM_MODE} ${SCONE_ENCLAVE}
+scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml ${CVM_MODE} ${SCONE_ENCLAVE}
 ```
 
 ## 9. Deploy the Confidential Manifest
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.job.cleaned.yaml
+kubectl apply -f manifest.job.sanitized.yaml
 # Wait for the Kubernetes resource to reach the expected state.
 kubectl wait --for=condition=complete job/hello-world --timeout=300s
 # Show logs from the Kubernetes workload.

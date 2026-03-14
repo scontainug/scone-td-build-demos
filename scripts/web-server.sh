@@ -212,7 +212,7 @@ printf '%s\n' 'if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"'
 printf '%s\n' 'else'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."'
-printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})'
+printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-})'
 printf '%s\n' '  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
 printf '%s\n' 'fi'
 printf "${RESET}"
@@ -221,7 +221,7 @@ if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-})
   kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 
@@ -395,6 +395,7 @@ printf '%s\n' '  --spol \'
 printf '%s\n' '  --manifest-env SCONE_SYSLIBS=1 \'
 printf '%s\n' '  --manifest-env SCONE_VERSION=1 \'
 printf '%s\n' '  --session-env SCONE_VERSION=1 \'
+printf '%s\n' '  --output-manifest-file manifest.sanitized.yaml \'
 printf '%s\n' '  --version ${SCONE_RUNTIME_VERSION} -p'
 printf "${RESET}"
 
@@ -407,6 +408,7 @@ scone-td-build apply \
   --manifest-env SCONE_SYSLIBS=1 \
   --manifest-env SCONE_VERSION=1 \
   --session-env SCONE_VERSION=1 \
+  --output-manifest-file manifest.sanitized.yaml \
   --version ${SCONE_RUNTIME_VERSION} -p
 
 printf "${VIOLET}"
@@ -417,11 +419,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Apply the Kubernetes manifest.'
-printf '%s\n' 'kubectl apply -f manifest.cleaned.yaml'
+printf '%s\n' 'kubectl apply -f manifest.sanitized.yaml'
 printf "${RESET}"
 
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.cleaned.yaml
+kubectl apply -f manifest.sanitized.yaml
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -479,7 +481,7 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Delete the Kubernetes resource if it exists.'
-printf '%s\n' 'kubectl delete -f manifest.cleaned.yaml'
+printf '%s\n' 'kubectl delete -f manifest.sanitized.yaml'
 printf '%s\n' '# Stop the previous background process if it is still running.'
 printf '%s\n' 'kill $(cat /tmp/pf-8000.pid) || true'
 printf '%s\n' '# Remove `/tmp/pf-8000.pid` if it exists.'
@@ -489,7 +491,7 @@ printf '%s\n' 'popd'
 printf "${RESET}"
 
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifest.cleaned.yaml
+kubectl delete -f manifest.sanitized.yaml
 # Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-8000.pid) || true
 # Remove `/tmp/pf-8000.pid` if it exists.
