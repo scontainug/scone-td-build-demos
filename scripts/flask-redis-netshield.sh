@@ -6,24 +6,31 @@ set -euo pipefail
 VIOLET='\033[38;5;141m'
 ORANGE='\033[38;5;208m'
 RESET='\033[0m'
-CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:---force}"
 
 show_help() {
   cat <<USAGE
-Usage: $0 [--help]
+Usage: $0 [--help] [--non-interactive]
 
 Runs shell commands extracted from flask-redis-netshield/README.md.
 
 Options:
-  --help  Show this help message and exit.
+  --help             Show this help message and exit.
+  --non-interactive  Do not force confirmation for existing tplenv values.
 USAGE
 }
+
+NON_INTERACTIVE=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help)
       show_help
       exit 0
+      ;;
+    --non-interactive)
+      NON_INTERACTIVE=true
+      unset CONFIRM_ALL_ENVIRONMENT_VARIABLES || true
+      shift
       ;;
     --)
       shift
@@ -45,6 +52,21 @@ done
 if [[ $# -gt 0 ]]; then
   echo "Error: This script does not accept positional arguments." >&2
   show_help >&2
+  exit 1
+fi
+
+if ! $NON_INTERACTIVE; then
+  CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
+fi
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+expected_workdir="$(cd "${script_dir}/.." && pwd)"
+expected_invocation="./$(basename "${script_dir}")/$(basename "$0")"
+
+if [[ "$(pwd)" != "$expected_workdir" ]]; then
+  echo "Error: Wrong working directory." >&2
+  echo "Expected working directory: $expected_workdir" >&2
+  echo "Run this script as: $expected_invocation" >&2
   exit 1
 fi
 
@@ -87,56 +109,82 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Change into `flask-redis-netshield`.'
 printf '%s\n' 'cd flask-redis-netshield'
+printf '%s\n' '# Create `certs` if it does not already exist.'
 printf '%s\n' 'mkdir -p certs'
 printf '%s\n' ''
 printf '%s\n' '# CA'
+printf '%s\n' '# Generate the certificate authority private key.'
 printf '%s\n' 'openssl genrsa -out certs/redis-ca.key 4096'
+printf '%s\n' '# Create a self-signed certificate.'
 printf '%s\n' 'openssl req -x509 -new -nodes -key certs/redis-ca.key -sha256 -days 3650 \'
 printf '%s\n' '  -out certs/redis-ca.crt -subj "/CN=redis-ca"'
 printf '%s\n' ''
 printf '%s\n' '# Redis server cert'
+printf '%s\n' '# Generate the Redis server private key.'
 printf '%s\n' 'openssl genrsa -out certs/redis.key 2048'
+printf '%s\n' '# Create a certificate signing request.'
 printf '%s\n' 'openssl req -new -key certs/redis.key -out certs/redis.csr -subj "/CN=redis"'
+printf '%s\n' '# Sign the certificate with the certificate authority.'
 printf '%s\n' 'openssl x509 -req -in certs/redis.csr -CA certs/redis-ca.crt -CAkey certs/redis-ca.key \'
 printf '%s\n' '  -CAcreateserial -out certs/redis.crt -days 365 -sha256'
 printf '%s\n' ''
 printf '%s\n' '# Flask server cert'
+printf '%s\n' '# Generate the Flask server private key.'
 printf '%s\n' 'openssl genrsa -out certs/flask.key 2048'
+printf '%s\n' '# Create a certificate signing request.'
 printf '%s\n' 'openssl req -new -key certs/flask.key -out certs/flask.csr -subj "/CN=flask-api"'
+printf '%s\n' '# Sign the certificate with the certificate authority.'
 printf '%s\n' 'openssl x509 -req -in certs/flask.csr -CA certs/redis-ca.crt -CAkey certs/redis-ca.key \'
 printf '%s\n' '  -CAcreateserial -out certs/flask.crt -days 365 -sha256'
 printf '%s\n' ''
 printf '%s\n' '# Client cert (used by Flask to connect to Redis)'
+printf '%s\n' '# Generate the client private key.'
 printf '%s\n' 'openssl genrsa -out certs/client.key 2048'
+printf '%s\n' '# Create a certificate signing request.'
 printf '%s\n' 'openssl req -new -key certs/client.key -out certs/client.csr -subj "/CN=flask-client"'
+printf '%s\n' '# Sign the certificate with the certificate authority.'
 printf '%s\n' 'openssl x509 -req -in certs/client.csr -CA certs/redis-ca.crt -CAkey certs/redis-ca.key \'
 printf '%s\n' '  -CAcreateserial -out certs/client.crt -days 365 -sha256'
 printf "${RESET}"
 
+# Change into `flask-redis-netshield`.
 cd flask-redis-netshield
+# Create `certs` if it does not already exist.
 mkdir -p certs
 
 # CA
+# Generate the certificate authority private key.
 openssl genrsa -out certs/redis-ca.key 4096
+# Create a self-signed certificate.
 openssl req -x509 -new -nodes -key certs/redis-ca.key -sha256 -days 3650 \
   -out certs/redis-ca.crt -subj "/CN=redis-ca"
 
 # Redis server cert
+# Generate the Redis server private key.
 openssl genrsa -out certs/redis.key 2048
+# Create a certificate signing request.
 openssl req -new -key certs/redis.key -out certs/redis.csr -subj "/CN=redis"
+# Sign the certificate with the certificate authority.
 openssl x509 -req -in certs/redis.csr -CA certs/redis-ca.crt -CAkey certs/redis-ca.key \
   -CAcreateserial -out certs/redis.crt -days 365 -sha256
 
 # Flask server cert
+# Generate the Flask server private key.
 openssl genrsa -out certs/flask.key 2048
+# Create a certificate signing request.
 openssl req -new -key certs/flask.key -out certs/flask.csr -subj "/CN=flask-api"
+# Sign the certificate with the certificate authority.
 openssl x509 -req -in certs/flask.csr -CA certs/redis-ca.crt -CAkey certs/redis-ca.key \
   -CAcreateserial -out certs/flask.crt -days 365 -sha256
 
 # Client cert (used by Flask to connect to Redis)
+# Generate the client private key.
 openssl genrsa -out certs/client.key 2048
+# Create a certificate signing request.
 openssl req -new -key certs/client.key -out certs/client.csr -subj "/CN=flask-client"
+# Sign the certificate with the certificate authority.
 openssl x509 -req -in certs/client.csr -CA certs/redis-ca.crt -CAkey certs/redis-ca.key \
   -CAcreateserial -out certs/client.crt -days 365 -sha256
 
@@ -153,15 +201,31 @@ printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '### Step 2. Collect environment variables and build the Docker image'
 printf '%s\n' ''
-printf '%s\n' 'Let `tplenv` query all environment variables used by this example:'
+printf '%s\n' 'Set `SIGNER` for policy signing:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)'
+printf '%s\n' '# Export the required environment variable for the next steps.'
+printf '%s\n' 'export SIGNER="$(scone self show-session-signing-key)"'
 printf "${RESET}"
 
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
+# Export the required environment variable for the next steps.
+export SIGNER="$(scone self show-session-signing-key)"
+
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' 'Then let `tplenv` query all environment variables used by this example:'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' '# Load environment variables from the tplenv definition file.'
+printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)'
+printf "${RESET}"
+
+# Load environment variables from the tplenv definition file.
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -170,11 +234,15 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Build the container image.'
 printf '%s\n' 'docker build -t ${IMAGE_NAME} .'
+printf '%s\n' '# Push the container image to the registry.'
 printf '%s\n' 'docker push ${IMAGE_NAME}'
 printf "${RESET}"
 
+# Build the container image.
 docker build -t ${IMAGE_NAME} .
+# Push the container image to the registry.
 docker push ${IMAGE_NAME}
 
 printf "${VIOLET}"
@@ -188,9 +256,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Create the Kubernetes namespace if it does not already exist.'
 printf '%s\n' 'kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"'
 printf "${RESET}"
 
+# Create the Kubernetes namespace if it does not already exist.
 kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
 
 printf "${VIOLET}"
@@ -204,6 +274,7 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Generate the Kubernetes secret manifest.'
 printf '%s\n' 'kubectl create secret generic redis-tls \'
 printf '%s\n' '  --namespace ${NAMESPACE} \'
 printf '%s\n' '  --from-file=redis.crt=certs/redis.crt \'
@@ -211,6 +282,7 @@ printf '%s\n' '  --from-file=redis.key=certs/redis.key \'
 printf '%s\n' '  --from-file=redis-ca.crt=certs/redis-ca.crt \'
 printf '%s\n' '  --dry-run=client -o yaml > k8s/secret-redis-tls.yaml'
 printf '%s\n' ''
+printf '%s\n' '# Generate the Kubernetes secret manifest.'
 printf '%s\n' 'kubectl create secret generic flask-tls \'
 printf '%s\n' '  --namespace ${NAMESPACE} \'
 printf '%s\n' '  --from-file=flask.crt=certs/flask.crt \'
@@ -221,6 +293,7 @@ printf '%s\n' '  --from-file=redis-ca.crt=certs/redis-ca.crt \'
 printf '%s\n' '  --dry-run=client -o yaml > k8s/secret-flask-tls.yaml'
 printf "${RESET}"
 
+# Generate the Kubernetes secret manifest.
 kubectl create secret generic redis-tls \
   --namespace ${NAMESPACE} \
   --from-file=redis.crt=certs/redis.crt \
@@ -228,6 +301,7 @@ kubectl create secret generic redis-tls \
   --from-file=redis-ca.crt=certs/redis-ca.crt \
   --dry-run=client -o yaml > k8s/secret-redis-tls.yaml
 
+# Generate the Kubernetes secret manifest.
 kubectl create secret generic flask-tls \
   --namespace ${NAMESPACE} \
   --from-file=flask.crt=certs/flask.crt \
@@ -244,11 +318,15 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Apply the Kubernetes manifest.'
 printf '%s\n' 'kubectl apply -f k8s/secret-redis-tls.yaml'
+printf '%s\n' '# Apply the Kubernetes manifest.'
 printf '%s\n' 'kubectl apply -f k8s/secret-flask-tls.yaml'
 printf "${RESET}"
 
+# Apply the Kubernetes manifest.
 kubectl apply -f k8s/secret-redis-tls.yaml
+# Apply the Kubernetes manifest.
 kubectl apply -f k8s/secret-flask-tls.yaml
 
 printf "${VIOLET}"
@@ -268,20 +346,30 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Check whether the pull secret already exists.'
 printf '%s\n' 'if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then'
+printf '%s\n' '  # Print a status message.'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"'
 printf '%s\n' 'else'
+printf '%s\n' '  # Print a status message.'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."'
-printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )'
+printf '%s\n' '  # Load environment variables from the tplenv definition file.'
+printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} )'
+printf '%s\n' '  # Create the Docker registry pull secret.'
 printf '%s\n' '  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
+# Check whether the pull secret already exists.
 if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+  # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
+  # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
+  # Load environment variables from the tplenv definition file.
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} )
+  # Create the Docker registry pull secret.
   kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 
@@ -294,9 +382,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Render the template with the selected values.'
 printf '%s\n' 'tplenv --file k8s/manifest.template.yaml --create-values-file --output k8s/manifest.yaml'
 printf "${RESET}"
 
+# Render the template with the selected values.
 tplenv --file k8s/manifest.template.yaml --create-values-file --output k8s/manifest.yaml
 
 printf "${VIOLET}"
@@ -306,9 +396,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Apply the Kubernetes manifest.'
 printf '%s\n' 'kubectl apply -f k8s/manifest.yaml --namespace ${NAMESPACE}'
 printf "${RESET}"
 
+# Apply the Kubernetes manifest.
 kubectl apply -f k8s/manifest.yaml --namespace ${NAMESPACE}
 
 printf "${VIOLET}"
@@ -321,30 +413,40 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Watch all resources come up'
+printf '%s\n' '# List the Kubernetes resources in the namespace.'
 printf '%s\n' 'kubectl get all -n ${NAMESPACE}'
 printf '%s\n' ''
 printf '%s\n' '# Wait for Redis'
+printf '%s\n' '# Wait for the deployment rollout to complete.'
 printf '%s\n' 'kubectl rollout status deployment/redis -n ${NAMESPACE}  --watch=true  --timeout=240s'
 printf '%s\n' ''
 printf '%s\n' '# Wait for Flask API'
+printf '%s\n' '# Wait for the deployment rollout to complete.'
 printf '%s\n' 'kubectl rollout status deployment/flask-api -n ${NAMESPACE} --watch=true  --timeout=240s'
 printf '%s\n' ''
 printf '%s\n' '# Check logs'
+printf '%s\n' '# Show logs from the Kubernetes workload.'
 printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50'
+printf '%s\n' '# Show logs from the Kubernetes workload.'
 printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=redis --tail=20'
 printf "${RESET}"
 
 # Watch all resources come up
+# List the Kubernetes resources in the namespace.
 kubectl get all -n ${NAMESPACE}
 
 # Wait for Redis
+# Wait for the deployment rollout to complete.
 kubectl rollout status deployment/redis -n ${NAMESPACE}  --watch=true  --timeout=240s
 
 # Wait for Flask API
+# Wait for the deployment rollout to complete.
 kubectl rollout status deployment/flask-api -n ${NAMESPACE} --watch=true  --timeout=240s
 
 # Check logs
+# Show logs from the Kubernetes workload.
 kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
+# Show logs from the Kubernetes workload.
 kubectl logs -n ${NAMESPACE} -l app=redis --tail=20
 
 printf "${VIOLET}"
@@ -358,7 +460,9 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Stop the previous background process if it is still running.'
 printf '%s\n' 'kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true'
+printf '%s\n' '# Capture the name of a ready pod for port-forwarding.'
 printf '%s\n' 'POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \'
 printf '%s\n' ' | jq -r '\''.items[]'
 printf '%s\n' '    | select(.metadata.deletionTimestamp == null)'
@@ -367,10 +471,13 @@ printf '%s\n' '    | select(any(.status.conditions[]; .type=="Ready" and .status
 printf '%s\n' '    | .metadata.name'\'' | head -n1)'
 printf '%s\n' ''
 printf '%s\n' ''
+printf '%s\n' '# Start a local port-forward to the Kubernetes workload.'
 printf '%s\n' 'kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid'
 printf "${RESET}"
 
+# Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
+# Capture the name of a ready pod for port-forwarding.
 POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \
  | jq -r '.items[]
     | select(.metadata.deletionTimestamp == null)
@@ -379,6 +486,7 @@ POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \
     | .metadata.name' | head -n1)
 
 
+# Start a local port-forward to the Kubernetes workload.
 kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid
 
 printf "${VIOLET}"
@@ -389,9 +497,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# List all stored keys'
+printf '%s\n' '# Request the list of stored keys from the service.'
 printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys'
 printf '%s\n' ''
 printf '%s\n' '# Create a client record'
+printf '%s\n' '# Create a test client record through the API.'
 printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \'
 printf '%s\n' '  -F fname=John \'
 printf '%s\n' '  -F lname=Doe \'
@@ -402,19 +512,24 @@ printf '%s\n' '  -F ssn="123-45-6789" \'
 printf '%s\n' '  -F email="john@example.com"'
 printf '%s\n' ''
 printf '%s\n' '# Retrieve a client'
+printf '%s\n' '# Fetch the stored client record from the API.'
 printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123'
 printf '%s\n' ''
 printf '%s\n' '# Get credit score'
+printf '%s\n' '# Request the credit score for the test client.'
 printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123'
 printf '%s\n' ''
 printf '%s\n' '# Memory dump (debug)'
+printf '%s\n' '# Request the debug memory dump from the API.'
 printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory'
 printf "${RESET}"
 
 # List all stored keys
+# Request the list of stored keys from the service.
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
 
 # Create a client record
+# Create a test client record through the API.
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
   -F fname=John \
   -F lname=Doe \
@@ -425,12 +540,15 @@ curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time
   -F email="john@example.com"
 
 # Retrieve a client
+# Fetch the stored client record from the API.
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
 
 # Get credit score
+# Request the credit score for the test client.
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
 
 # Memory dump (debug)
+# Request the debug memory dump from the API.
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory
 
 printf "${VIOLET}"
@@ -446,11 +564,15 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Delete the Kubernetes resource if it exists.'
 printf '%s\n' 'kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found'
+printf '%s\n' '# Delete the Kubernetes resource if it exists.'
 printf '%s\n' 'kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found'
 printf "${RESET}"
 
+# Delete the Kubernetes resource if it exists.
 kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
+# Delete the Kubernetes resource if it exists.
 kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found
 
 printf "${VIOLET}"
@@ -469,18 +591,26 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Check whether the signing key needs to be generated.'
 printf '%s\n' 'if [ ! -f identity.pem ]; then'
+printf '%s\n' '  # Print a status message.'
 printf '%s\n' '  echo "Generating identity.pem ..."'
+printf '%s\n' '  # Generate the signing key for confidential binaries.'
 printf '%s\n' '  openssl genrsa -3 -out identity.pem 3072'
 printf '%s\n' 'else'
+printf '%s\n' '  # Print a status message.'
 printf '%s\n' '  echo "identity.pem already exists."'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
+# Check whether the signing key needs to be generated.
 if [ ! -f identity.pem ]; then
+  # Print a status message.
   echo "Generating identity.pem ..."
+  # Generate the signing key for confidential binaries.
   openssl genrsa -3 -out identity.pem 3072
 else
+  # Print a status message.
   echo "identity.pem already exists."
 fi
 
@@ -491,13 +621,19 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Render the template with the selected values.'
 printf '%s\n' 'tplenv --file scone.template.yaml --create-values-file --output scone.yaml'
+printf '%s\n' '# Remove `flask-redis-demo.json` if it exists.'
 printf '%s\n' 'rm flask-redis-demo.json || true'
+printf '%s\n' '# Generate the confidential image and sanitized manifest from the SCONE configuration.'
 printf '%s\n' 'scone-td-build from -y scone.yaml'
 printf "${RESET}"
 
+# Render the template with the selected values.
 tplenv --file scone.template.yaml --create-values-file --output scone.yaml
+# Remove `flask-redis-demo.json` if it exists.
 rm flask-redis-demo.json || true
+# Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y scone.yaml
 
 printf "${VIOLET}"
@@ -511,9 +647,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Apply the Kubernetes manifest.'
 printf '%s\n' 'kubectl apply -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}'
 printf "${RESET}"
 
+# Apply the Kubernetes manifest.
 kubectl apply -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}
 
 printf "${VIOLET}"
@@ -526,30 +664,40 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Watch all resources come up'
+printf '%s\n' '# List the Kubernetes resources in the namespace.'
 printf '%s\n' 'kubectl get all -n ${NAMESPACE}'
 printf '%s\n' ''
 printf '%s\n' '# Wait for Redis'
+printf '%s\n' '# Wait for the deployment rollout to complete.'
 printf '%s\n' 'kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=300s'
 printf '%s\n' ''
 printf '%s\n' '# Wait for Flask API'
+printf '%s\n' '# Wait for the deployment rollout to complete.'
 printf '%s\n' 'kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=300s'
 printf '%s\n' ''
 printf '%s\n' '# Check logs'
+printf '%s\n' '# Show logs from the Kubernetes workload.'
 printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50'
+printf '%s\n' '# Show logs from the Kubernetes workload.'
 printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=redis --tail=20'
 printf "${RESET}"
 
 # Watch all resources come up
+# List the Kubernetes resources in the namespace.
 kubectl get all -n ${NAMESPACE}
 
 # Wait for Redis
+# Wait for the deployment rollout to complete.
 kubectl rollout status deployment/redis -n ${NAMESPACE} --timeout=300s
 
 # Wait for Flask API
+# Wait for the deployment rollout to complete.
 kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=300s
 
 # Check logs
+# Show logs from the Kubernetes workload.
 kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
+# Show logs from the Kubernetes workload.
 kubectl logs -n ${NAMESPACE} -l app=redis --tail=20
 
 printf "${VIOLET}"
@@ -563,7 +711,9 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Stop the previous background process if it is still running.'
 printf '%s\n' 'kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true'
+printf '%s\n' '# Capture the name of a ready pod for port-forwarding.'
 printf '%s\n' 'POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \'
 printf '%s\n' ' | jq -r '\''.items[]'
 printf '%s\n' '    | select(.metadata.deletionTimestamp == null)'
@@ -571,10 +721,13 @@ printf '%s\n' '    | select(.status.phase=="Running")'
 printf '%s\n' '    | select(any(.status.conditions[]; .type=="Ready" and .status=="True"))'
 printf '%s\n' '    | .metadata.name'\'' | head -n1)'
 printf '%s\n' ''
+printf '%s\n' '# Start a local port-forward to the Kubernetes workload.'
 printf '%s\n' 'kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid'
 printf "${RESET}"
 
+# Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
+# Capture the name of a ready pod for port-forwarding.
 POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \
  | jq -r '.items[]
     | select(.metadata.deletionTimestamp == null)
@@ -582,6 +735,7 @@ POD=$(kubectl get pods -n ${NAMESPACE} -l app=flask-api -o json \
     | select(any(.status.conditions[]; .type=="Ready" and .status=="True"))
     | .metadata.name' | head -n1)
 
+# Start a local port-forward to the Kubernetes workload.
 kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid
 
 printf "${VIOLET}"
@@ -592,9 +746,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# List all stored keys'
+printf '%s\n' '# Request the list of stored keys from the service.'
 printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys'
 printf '%s\n' ''
 printf '%s\n' '# Create a client record'
+printf '%s\n' '# Create a test client record through the API.'
 printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \'
 printf '%s\n' '  -F fname=John \'
 printf '%s\n' '  -F lname=Doe \'
@@ -605,19 +761,24 @@ printf '%s\n' '  -F ssn="123-45-6789" \'
 printf '%s\n' '  -F email="john@example.com"'
 printf '%s\n' ''
 printf '%s\n' '# Retrieve a client'
+printf '%s\n' '# Fetch the stored client record from the API.'
 printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123'
 printf '%s\n' ''
 printf '%s\n' '# Get credit score'
+printf '%s\n' '# Request the credit score for the test client.'
 printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123'
 printf '%s\n' ''
 printf '%s\n' '# Memory dump (debug)'
+printf '%s\n' '# Request the debug memory dump from the API.'
 printf '%s\n' 'curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory'
 printf "${RESET}"
 
 # List all stored keys
+# Request the list of stored keys from the service.
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
 
 # Create a client record
+# Create a test client record through the API.
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk -X POST https://localhost:14996/client/abc123 \
   -F fname=John \
   -F lname=Doe \
@@ -628,12 +789,15 @@ curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time
   -F email="john@example.com"
 
 # Retrieve a client
+# Fetch the stored client record from the API.
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
 
 # Get credit score
+# Request the credit score for the test client.
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
 
 # Memory dump (debug)
+# Request the debug memory dump from the API.
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/memory
 
 printf "${VIOLET}"
@@ -650,18 +814,24 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Stop the port-forward'
+printf '%s\n' '# Stop the previous background process if it is still running.'
 printf '%s\n' 'kill $(cat /tmp/pf-14996.pid) 2> /dev/null || true'
+printf '%s\n' '# Remove `/tmp/pf-14996.pid` if it exists.'
 printf '%s\n' 'rm /tmp/pf-14996.pid'
 printf '%s\n' ''
 printf '%s\n' '# Delete confidential manifest resources'
+printf '%s\n' '# Delete the Kubernetes resource if it exists.'
 printf '%s\n' 'kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found'
 printf "${RESET}"
 
 # Stop the port-forward
+# Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-14996.pid) 2> /dev/null || true
+# Remove `/tmp/pf-14996.pid` if it exists.
 rm /tmp/pf-14996.pid
 
 # Delete confidential manifest resources
+# Delete the Kubernetes resource if it exists.
 kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
 
 printf "${VIOLET}"

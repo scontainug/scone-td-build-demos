@@ -40,6 +40,7 @@ This example shows how to manage and access configuration data in Kubernetes wit
 Follow the [Setup environment](https://github.com/scontain/scone) guide. The easiest option is usually the Kubernetes-based setup in [k8s.md](https://github.com/scontain/scone/blob/main/k8s.md).
 
 ```bash
+# Change into `go-args-env-file`.
 cd go-args-env-file
 ```
 
@@ -61,13 +62,15 @@ Default values are stored in `Values.yaml`. `tplenv` asks whether to keep the de
 Set `SIGNER` for policy signing:
 
 ```bash
+# Export the required environment variable for the next steps.
 export SIGNER="$(scone self show-session-signing-key)"
 ```
 
 Load the full variable set from `environment-variables.md`:
 
 ```bash
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval --force --output /dev/null)
+# Load environment variables from the tplenv definition file.
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
 ```
 
 ---
@@ -77,7 +80,9 @@ eval $(tplenv --file environment-variables.md --create-values-file --context --e
 The Dockerfile uses a two-stage build: a `golang:1.22-alpine` builder stage compiles a fully static binary, which is then copied into a minimal `scratch` runtime image.
 
 ```bash
+# Build the container image.
 docker build -t ${DEMO_IMAGE} .
+# Push the container image to the registry.
 docker push ${DEMO_IMAGE}
 ```
 
@@ -111,7 +116,9 @@ make build GOOS=linux GOARCH=amd64
 `tplenv` substitutes environment variables into the template files and writes the final manifests:
 
 ```bash
+# Render the template with the selected values.
 tplenv --file manifests/manifest.template.yaml --create-values-file --output manifests/manifest.yaml --indent
+# Render the template with the selected values.
 tplenv --file manifests/scone.template.yaml    --create-values-file --output manifests/scone.yaml    --indent
 ```
 
@@ -128,9 +135,12 @@ If you need a pull secret for native and confidential images, create it when mis
 - `$REGISTRY_TOKEN` — Registry pull token (see <https://sconedocs.github.io/registry/>)
 
 ```bash
+# Check whether the pull secret already exists.
 if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+  # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
+  # Create the Docker registry pull secret.
   kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" \
     --docker-server=$REGISTRY \
     --docker-username=$REGISTRY_USER \
@@ -145,7 +155,9 @@ fi
 Apply the manifest and follow the pod logs to confirm the app prints arguments, environment variables, and the contents of the ConfigMap and Secret files:
 
 ```bash
+# Apply the Kubernetes manifest.
 kubectl apply -f manifests/manifest.yaml
+# Retry the wrapped command until it succeeds or reaches the retry limit.
 retry-spinner --retries 10 --wait 2 -- kubectl logs deployment/go-args-env-file
 ```
 
@@ -154,6 +166,7 @@ Your container should print the command-line args, all environment variables, th
 Clean up the native deployment before moving on:
 
 ```bash
+# Delete the Kubernetes resource if it exists.
 kubectl delete -f manifests/manifest.yaml
 ```
 
@@ -168,6 +181,7 @@ The manifest mounts:
 Build the confidential image and generate the SCONE session from `manifests/scone.yaml`:
 
 ```bash
+# Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y manifests/scone.yaml
 ```
 
@@ -182,6 +196,7 @@ This command:
 ## 9. Deploy the SCONE-Protected App
 
 ```bash
+# Apply the Kubernetes manifest.
 kubectl apply -f manifests/manifest.prod.sanitized.yaml
 ```
 
@@ -190,6 +205,7 @@ kubectl apply -f manifests/manifest.prod.sanitized.yaml
 ## 10. View Logs
 
 ```bash
+# Retry the wrapped command until it succeeds or reaches the retry limit.
 retry-spinner -- kubectl logs deployment/go-args-env-file --follow
 ```
 
@@ -198,6 +214,7 @@ retry-spinner -- kubectl logs deployment/go-args-env-file --follow
 ## 11. Clean Up
 
 ```bash
+# Delete the Kubernetes resource if it exists.
 kubectl delete -f manifests/manifest.prod.sanitized.yaml
 ```
 

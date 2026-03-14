@@ -18,3 +18,5 @@
 8. In CVM mode, you can run on confidential Kubernetes nodes or Kata Pods.
    We recommend using confidential nodes and setting `${SCONE_ENCLAVE}` to `true`.
 9. The manifests are stored in `${SCRIPT_DIR}`
+10. We need to set the local signer: `${SIGNER}`
+    This should already be preset to `scone self show-session-signing-key`

@@ -5,12 +5,8 @@ environment:
   REGISTRY_TOKEN: ''
   REGISTRY_USER: ''
   IMAGE_PULL_SECRET_NAME: sconeapps
-  SCONE_VERSION: 6.1.0-rc.0
   CAS_NAMESPACE: default
   CAS_NAME: cas
   CVM_MODE: 'true'
   SCONE_ENCLAVE: 'true'
-  SIGNER: |-
-    -----BEGIN PUBLIC KEY-----
-    MCowBQYDK2VwAyEAvSRST+dhEaX42c6VkY1Sv+KVelnSup96M6TMHOlqcrg=
-    -----END PUBLIC KEY-----
+  SCONE_RUNTIME_VERSION: 6.1.0-rc.0

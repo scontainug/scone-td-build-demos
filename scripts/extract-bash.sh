@@ -107,20 +107,28 @@ write_generated_help() {
   {
     echo 'show_help() {'
     echo '  cat <<USAGE'
-    echo 'Usage: $0 [--help]'
+    echo 'Usage: $0 [--help] [--non-interactive]'
     echo
     echo "$description"
     echo
     echo 'Options:'
-    echo '  --help  Show this help message and exit.'
+    echo '  --help             Show this help message and exit.'
+    echo '  --non-interactive  Do not force confirmation for existing tplenv values.'
     echo 'USAGE'
     echo '}'
+    echo
+    echo 'NON_INTERACTIVE=false'
     echo
     echo 'while [[ $# -gt 0 ]]; do'
     echo '  case "$1" in'
     echo '    --help)'
     echo '      show_help'
     echo '      exit 0'
+    echo '      ;;'
+    echo '    --non-interactive)'
+    echo '      NON_INTERACTIVE=true'
+    echo '      unset CONFIRM_ALL_ENVIRONMENT_VARIABLES || true'
+    echo '      shift'
     echo '      ;;'
     echo '    --)'
     echo '      shift'
@@ -145,6 +153,23 @@ write_generated_help() {
     echo '  exit 1'
     echo 'fi'
     echo
+    if [[ "$script_mode" == "default" ]]; then
+      echo 'if ! $NON_INTERACTIVE; then'
+      echo '  CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
+      echo 'fi'
+      echo
+    fi
+    echo 'script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"'
+    echo 'expected_workdir="$(cd "${script_dir}/.." && pwd)"'
+    echo 'expected_invocation="./$(basename "${script_dir}")/$(basename "$0")"'
+    echo
+    echo 'if [[ "$(pwd)" != "$expected_workdir" ]]; then'
+    echo '  echo "Error: Wrong working directory." >&2'
+    echo '  echo "Expected working directory: $expected_workdir" >&2'
+    echo '  echo "Run this script as: $expected_invocation" >&2'
+    echo '  exit 1'
+    echo 'fi'
+    echo
   } >>"$output_file"
 }
 
@@ -158,7 +183,6 @@ write_default_header() {
     echo "VIOLET='\\033[38;5;141m'"
     echo "ORANGE='\\033[38;5;208m'"
     echo "RESET='\\033[0m'"
-    echo 'CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:---force}"'
     echo
   } >>"$TMP_OUTPUT"
 
@@ -181,7 +205,6 @@ LINES="${LINES:-26}"
 ORANGE="${ORANGE:-\033[38;5;208m}"
 LILAC="${LILAC:-\033[38;5;141m}"
 RESET="${RESET:-\033[0m}"
-CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:-}"
 
 slow_type() {
   local text="$*"
@@ -227,6 +250,15 @@ EOF
 
 escape_single_quotes() {
   printf "%s" "$1" | sed "s/'/'\\\\''/g"
+}
+
+normalize_generated_code_line() {
+  local line="$1"
+
+  line="${line//\$\{CONFIRM_ALL_ENVIRONMENT_VARIABLES\}/\$\{CONFIRM_ALL_ENVIRONMENT_VARIABLES-\}}"
+  line="${line//--eval --force/--eval \${CONFIRM_ALL_ENVIRONMENT_VARIABLES-\}}"
+
+  printf '%s' "$line"
 }
 
 emit_printf_lines() {
@@ -302,9 +334,15 @@ flush_code_block() {
     return
   fi
 
+  local normalized_code_buffer=()
+  local line
+  for line in "${code_buffer[@]}"; do
+    normalized_code_buffer+=("$(normalize_generated_code_line "$line")")
+  done
+
   if [[ "$mode" == "docs-pe" ]]; then
     current_command=()
-    for line in "${code_buffer[@]}"; do
+    for line in "${normalized_code_buffer[@]}"; do
       current_command+=("$line")
       if ends_with_continuation_backslash "$line"; then
         continue
@@ -321,10 +359,10 @@ flush_code_block() {
   fi
 
   echo 'printf "${ORANGE}"' >> "$TMP_OUTPUT"
-  emit_printf_lines "$TMP_OUTPUT" "${code_buffer[@]}"
+  emit_printf_lines "$TMP_OUTPUT" "${normalized_code_buffer[@]}"
   echo 'printf "${RESET}"' >> "$TMP_OUTPUT"
   echo "" >> "$TMP_OUTPUT"
-  for line in "${code_buffer[@]}"; do
+  for line in "${normalized_code_buffer[@]}"; do
     echo "$line" >> "$TMP_OUTPUT"
   done
   echo "" >> "$TMP_OUTPUT"

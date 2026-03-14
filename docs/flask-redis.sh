@@ -12,7 +12,6 @@ LINES="${LINES:-26}"
 ORANGE="${ORANGE:-\033[38;5;208m}"
 LILAC="${LILAC:-\033[38;5;141m}"
 RESET="${RESET:-\033[0m}"
-CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:-}"
 
 slow_type() {
   local text="$*"
@@ -53,20 +52,28 @@ stty cols "$COLUMNS" rows "$LINES"
 
 show_help() {
   cat <<USAGE
-Usage: $0 [--help]
+Usage: $0 [--help] [--non-interactive]
 
 Runs a demo-style shell script generated from flask-redis/README.md.
 
 Options:
-  --help  Show this help message and exit.
+  --help             Show this help message and exit.
+  --non-interactive  Do not force confirmation for existing tplenv values.
 USAGE
 }
+
+NON_INTERACTIVE=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help)
       show_help
       exit 0
+      ;;
+    --non-interactive)
+      NON_INTERACTIVE=true
+      unset CONFIRM_ALL_ENVIRONMENT_VARIABLES || true
+      shift
       ;;
     --)
       shift
@@ -88,6 +95,17 @@ done
 if [[ $# -gt 0 ]]; then
   echo "Error: This script does not accept positional arguments." >&2
   show_help >&2
+  exit 1
+fi
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+expected_workdir="$(cd "${script_dir}/.." && pwd)"
+expected_invocation="./$(basename "${script_dir}")/$(basename "$0")"
+
+if [[ "$(pwd)" != "$expected_workdir" ]]; then
+  echo "Error: Wrong working directory." >&2
+  echo "Expected working directory: $expected_workdir" >&2
+  echo "Run this script as: $expected_invocation" >&2
   exit 1
 fi
 
@@ -130,7 +148,15 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Change into `flask-redis`.
+EOF
+)"
+pe "$(cat <<'EOF'
 cd flask-redis
+EOF
+)"
+pe "$(cat <<'EOF'
+# Create `certs` if it does not already exist.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -139,6 +165,10 @@ EOF
 )"
 pe "$(cat <<'EOF'
 # cleanup
+EOF
+)"
+pe "$(cat <<'EOF'
+# Remove `flask-redis/flask-redis-demo.json` if it exists.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -154,7 +184,15 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Generate the certificate authority private key.
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl genrsa -out certs/redis-ca.key 4096
+EOF
+)"
+pe "$(cat <<'EOF'
+# Create a self-signed certificate.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -171,11 +209,23 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Generate the Redis server private key.
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl genrsa -out certs/redis.key 2048
 EOF
 )"
 pe "$(cat <<'EOF'
+# Create a certificate signing request.
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl req -new -key certs/redis.key -out certs/redis.csr -subj "/CN=redis"
+EOF
+)"
+pe "$(cat <<'EOF'
+# Sign the certificate with the certificate authority.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -192,11 +242,23 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Generate the Flask server private key.
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl genrsa -out certs/flask.key 2048
 EOF
 )"
 pe "$(cat <<'EOF'
+# Create a certificate signing request.
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl req -new -key certs/flask.key -out certs/flask.csr -subj "/CN=flask-api"
+EOF
+)"
+pe "$(cat <<'EOF'
+# Sign the certificate with the certificate authority.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -213,11 +275,23 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Generate the client private key.
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl genrsa -out certs/client.key 2048
 EOF
 )"
 pe "$(cat <<'EOF'
+# Create a certificate signing request.
+EOF
+)"
+pe "$(cat <<'EOF'
 openssl req -new -key certs/client.key -out certs/client.csr -subj "/CN=flask-client"
+EOF
+)"
+pe "$(cat <<'EOF'
+# Sign the certificate with the certificate authority.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -239,12 +313,31 @@ printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '### Step 2. Collect environment variables and build the Docker image'
 printf '%s\n' ''
-printf '%s\n' 'Let `tplenv` query all environment variables used by this example:'
+printf '%s\n' 'Set `SIGNER` for policy signing:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
+# Export the required environment variable for the next steps.
+EOF
+)"
+pe "$(cat <<'EOF'
+export SIGNER="$(scone self show-session-signing-key)"
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'Then let `tplenv` query all environment variables used by this example:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+# Load environment variables from the tplenv definition file.
+EOF
+)"
+pe "$(cat <<'EOF'
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)
 EOF
 )"
 
@@ -255,7 +348,15 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Build the container image.
+EOF
+)"
+pe "$(cat <<'EOF'
 docker build -t ${IMAGE_NAME} .
+EOF
+)"
+pe "$(cat <<'EOF'
+# Push the container image to the registry.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -274,6 +375,10 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Create the Kubernetes namespace if it does not already exist.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
 EOF
 )"
@@ -289,6 +394,10 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Generate the Kubernetes secret manifest.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl create secret generic redis-tls \
   --namespace ${NAMESPACE} \
   --from-file=redis.crt=certs/redis.crt \
@@ -299,6 +408,10 @@ EOF
 )"
 pe "$(cat <<'EOF'
 
+EOF
+)"
+pe "$(cat <<'EOF'
+# Generate the Kubernetes secret manifest.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -320,7 +433,15 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Apply the Kubernetes manifest.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl apply -f k8s/secret-redis-tls.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
+# Apply the Kubernetes manifest.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -345,7 +466,15 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Check whether the pull secret already exists.
+EOF
+)"
+pe "$(cat <<'EOF'
 if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  # Print a status message.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -357,11 +486,23 @@ else
 EOF
 )"
 pe "$(cat <<'EOF'
+  # Print a status message.
+EOF
+)"
+pe "$(cat <<'EOF'
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
 EOF
 )"
 pe "$(cat <<'EOF'
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
+  # Load environment variables from the tplenv definition file.
+EOF
+)"
+pe "$(cat <<'EOF'
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} )
+EOF
+)"
+pe "$(cat <<'EOF'
+  # Create the Docker registry pull secret.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -382,6 +523,10 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Render the template with the selected values.
+EOF
+)"
+pe "$(cat <<'EOF'
 tplenv --file k8s/manifest.template.yaml --create-values-file --output k8s/manifest.yaml
 EOF
 )"
@@ -392,6 +537,10 @@ printf '%s\n' 'Review `k8s/manifest.yaml`, then apply it:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
+pe "$(cat <<'EOF'
+# Apply the Kubernetes manifest.
+EOF
+)"
 pe "$(cat <<'EOF'
 kubectl apply -f k8s/manifest.yaml --namespace ${NAMESPACE}
 EOF
@@ -410,6 +559,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# List the Kubernetes resources in the namespace.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl get all -n ${NAMESPACE}
 EOF
 )"
@@ -419,6 +572,10 @@ EOF
 )"
 pe "$(cat <<'EOF'
 # Wait for Redis
+EOF
+)"
+pe "$(cat <<'EOF'
+# Wait for the deployment rollout to complete.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -434,6 +591,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Wait for the deployment rollout to complete.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl rollout status deployment/flask-api -n ${NAMESPACE} --watch=true  --timeout=240s
 EOF
 )"
@@ -446,7 +607,15 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Print a status message.
+EOF
+)"
+pe "$(cat <<'EOF'
 echo "Log of flask-api"
+EOF
+)"
+pe "$(cat <<'EOF'
+# Show logs from the Kubernetes workload.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -454,7 +623,15 @@ kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
 EOF
 )"
 pe "$(cat <<'EOF'
+# Print a status message.
+EOF
+)"
+pe "$(cat <<'EOF'
 echo "Log of flask-api"
+EOF
+)"
+pe "$(cat <<'EOF'
+# Show logs from the Kubernetes workload.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -473,7 +650,15 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Stop the previous background process if it is still running.
+EOF
+)"
+pe "$(cat <<'EOF'
 kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
+EOF
+)"
+pe "$(cat <<'EOF'
+# Capture the name of a ready pod for port-forwarding.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -506,6 +691,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Start a local port-forward to the Kubernetes workload.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid
 EOF
 )"
@@ -521,6 +710,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Request the list of stored keys from the service.
+EOF
+)"
+pe "$(cat <<'EOF'
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
 EOF
 )"
@@ -530,6 +723,10 @@ EOF
 )"
 pe "$(cat <<'EOF'
 # Create a client record
+EOF
+)"
+pe "$(cat <<'EOF'
+# Create a test client record through the API.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -552,6 +749,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Fetch the stored client record from the API.
+EOF
+)"
+pe "$(cat <<'EOF'
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
 EOF
 )"
@@ -564,6 +765,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Request the credit score for the test client.
+EOF
+)"
+pe "$(cat <<'EOF'
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
 EOF
 )"
@@ -573,6 +778,10 @@ EOF
 )"
 pe "$(cat <<'EOF'
 # Memory dump (debug)
+EOF
+)"
+pe "$(cat <<'EOF'
+# Request the debug memory dump from the API.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -593,7 +802,15 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Delete the Kubernetes resource if it exists.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
+EOF
+)"
+pe "$(cat <<'EOF'
+# Wait for the Kubernetes resource to reach the expected state.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -601,7 +818,15 @@ kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeou
 EOF
 )"
 pe "$(cat <<'EOF'
+# Wait for the Kubernetes resource to reach the expected state.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
+EOF
+)"
+pe "$(cat <<'EOF'
+# Delete the Kubernetes resource if it exists.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -625,11 +850,23 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Check whether the signing key needs to be generated.
+EOF
+)"
+pe "$(cat <<'EOF'
 if [ ! -f identity.pem ]; then
 EOF
 )"
 pe "$(cat <<'EOF'
+  # Print a status message.
+EOF
+)"
+pe "$(cat <<'EOF'
   echo "Generating identity.pem ..."
+EOF
+)"
+pe "$(cat <<'EOF'
+  # Generate the signing key for confidential binaries.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -638,6 +875,10 @@ EOF
 )"
 pe "$(cat <<'EOF'
 else
+EOF
+)"
+pe "$(cat <<'EOF'
+  # Print a status message.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -656,11 +897,23 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Render the template with the selected values.
+EOF
+)"
+pe "$(cat <<'EOF'
 tplenv --file scone.template.yaml --create-values-file --output scone.yaml
 EOF
 )"
 pe "$(cat <<'EOF'
+# Remove `flask-redis-demo.json` if it exists.
+EOF
+)"
+pe "$(cat <<'EOF'
 rm flask-redis-demo.json || true
+EOF
+)"
+pe "$(cat <<'EOF'
+# Generate the confidential image and sanitized manifest from the SCONE configuration.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -679,6 +932,10 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Apply the Kubernetes manifest.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl apply -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}
 EOF
 )"
@@ -696,6 +953,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# List the Kubernetes resources in the namespace.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl get all -n ${NAMESPACE}
 EOF
 )"
@@ -705,6 +966,10 @@ EOF
 )"
 pe "$(cat <<'EOF'
 # Wait for Redis
+EOF
+)"
+pe "$(cat <<'EOF'
+# Wait for the Kubernetes resource to reach the expected state.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -720,6 +985,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Wait for the Kubernetes resource to reach the expected state.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 EOF
 )"
@@ -732,7 +1001,15 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Show logs from the Kubernetes workload.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
+EOF
+)"
+pe "$(cat <<'EOF'
+# Show logs from the Kubernetes workload.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -751,7 +1028,15 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Stop the previous background process if it is still running.
+EOF
+)"
+pe "$(cat <<'EOF'
 kill $(cat /tmp/pf-14996.pid 2> /dev/null) 2> /dev/null || true
+EOF
+)"
+pe "$(cat <<'EOF'
+# Capture the name of a ready pod for port-forwarding.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -780,6 +1065,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Start a local port-forward to the Kubernetes workload.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl port-forward -n ${NAMESPACE} pod/$POD 14996:4996 & echo $! > /tmp/pf-14996.pid
 EOF
 )"
@@ -795,6 +1084,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Request the list of stored keys from the service.
+EOF
+)"
+pe "$(cat <<'EOF'
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/keys
 EOF
 )"
@@ -804,6 +1097,10 @@ EOF
 )"
 pe "$(cat <<'EOF'
 # Create a client record
+EOF
+)"
+pe "$(cat <<'EOF'
+# Create a test client record through the API.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -826,6 +1123,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Fetch the stored client record from the API.
+EOF
+)"
+pe "$(cat <<'EOF'
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/client/abc123
 EOF
 )"
@@ -838,6 +1139,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Request the credit score for the test client.
+EOF
+)"
+pe "$(cat <<'EOF'
 curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 -sk https://localhost:14996/score/abc123
 EOF
 )"
@@ -847,6 +1152,10 @@ EOF
 )"
 pe "$(cat <<'EOF'
 # Memory dump (debug)
+EOF
+)"
+pe "$(cat <<'EOF'
+# Request the debug memory dump from the API.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -871,7 +1180,15 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Stop the previous background process if it is still running.
+EOF
+)"
+pe "$(cat <<'EOF'
 kill $(cat /tmp/pf-14996.pid) 2> /dev/null || true
+EOF
+)"
+pe "$(cat <<'EOF'
+# Remove `/tmp/pf-14996.pid` if it exists.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -887,11 +1204,23 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Delete the Kubernetes resource if it exists.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
 EOF
 )"
 pe "$(cat <<'EOF'
+# Wait for the Kubernetes resource to reach the expected state.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
+EOF
+)"
+pe "$(cat <<'EOF'
+# Wait for the Kubernetes resource to reach the expected state.
 EOF
 )"
 pe "$(cat <<'EOF'

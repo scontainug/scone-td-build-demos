@@ -58,6 +58,8 @@ spec:
     read:
       - ANY
     update:
-      - ANY
+      - signer: |
+          ${SIGNER}
     create_sessions:
-      - ANY
+      - signer: |
+          ${SIGNER}

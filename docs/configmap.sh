@@ -12,7 +12,6 @@ LINES="${LINES:-26}"
 ORANGE="${ORANGE:-\033[38;5;208m}"
 LILAC="${LILAC:-\033[38;5;141m}"
 RESET="${RESET:-\033[0m}"
-CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:-}"
 
 slow_type() {
   local text="$*"
@@ -53,20 +52,28 @@ stty cols "$COLUMNS" rows "$LINES"
 
 show_help() {
   cat <<USAGE
-Usage: $0 [--help]
+Usage: $0 [--help] [--non-interactive]
 
 Runs a demo-style shell script generated from configmap/README.md.
 
 Options:
-  --help  Show this help message and exit.
+  --help             Show this help message and exit.
+  --non-interactive  Do not force confirmation for existing tplenv values.
 USAGE
 }
+
+NON_INTERACTIVE=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help)
       show_help
       exit 0
+      ;;
+    --non-interactive)
+      NON_INTERACTIVE=true
+      unset CONFIRM_ALL_ENVIRONMENT_VARIABLES || true
+      shift
       ;;
     --)
       shift
@@ -88,6 +95,17 @@ done
 if [[ $# -gt 0 ]]; then
   echo "Error: This script does not accept positional arguments." >&2
   show_help >&2
+  exit 1
+fi
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+expected_workdir="$(cd "${script_dir}/.." && pwd)"
+expected_invocation="./$(basename "${script_dir}")/$(basename "$0")"
+
+if [[ "$(pwd)" != "$expected_workdir" ]]; then
+  echo "Error: Wrong working directory." >&2
+  echo "Expected working directory: $expected_workdir" >&2
+  echo "Run this script as: $expected_invocation" >&2
   exit 1
 fi
 
@@ -118,7 +136,15 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Enter `configmap` and remember the previous directory.
+EOF
+)"
+pe "$(cat <<'EOF'
 pushd configmap
+EOF
+)"
+pe "$(cat <<'EOF'
+# Remove `configmap-example.json` if it exists.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -133,7 +159,7 @@ printf '%s\n' ''
 printf '%s\n' '- `$DEMO_IMAGE` - Name of the native image to deploy'
 printf '%s\n' '- `$DESTINATION_IMAGE_NAME` - Name of the confidential image'
 printf '%s\n' '- `$IMAGE_PULL_SECRET_NAME` - Pull secret name (default: `sconeapps`)'
-printf '%s\n' '- `$SCONE_VERSION` - SCONE version to use (for example, `6.1.0-rc.0`)'
+printf '%s\n' '- `$SCONE_RUNTIME_VERSION` - SCONE version to use (for example, `6.1.0-rc.0`)'
 printf '%s\n' '- `$CAS_NAMESPACE` - CAS namespace (for example, `default`)'
 printf '%s\n' '- `$CAS_NAME` - CAS name (for example, `cas`)'
 printf '%s\n' '- `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX'
@@ -143,6 +169,10 @@ printf '%s\n' 'Set `SIGNER` for policy signing:'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
+pe "$(cat <<'EOF'
+# Export the required environment variable for the next steps.
+EOF
+)"
 pe "$(cat <<'EOF'
 export SIGNER="$(scone self show-session-signing-key)"
 EOF
@@ -155,7 +185,11 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
+# Load environment variables from the tplenv definition file.
+EOF
+)"
+pe "$(cat <<'EOF'
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)
 EOF
 )"
 
@@ -166,7 +200,15 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Enter `folder-reader` and remember the previous directory.
+EOF
+)"
+pe "$(cat <<'EOF'
 pushd folder-reader
+EOF
+)"
+pe "$(cat <<'EOF'
+# Build the container image.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -174,7 +216,15 @@ docker build -t ${DEMO_IMAGE} .
 EOF
 )"
 pe "$(cat <<'EOF'
+# Push the container image to the registry.
+EOF
+)"
+pe "$(cat <<'EOF'
 docker push ${DEMO_IMAGE}
+EOF
+)"
+pe "$(cat <<'EOF'
+# Return to the previous working directory.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -189,7 +239,15 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Render the template with the selected values.
+EOF
+)"
+pe "$(cat <<'EOF'
 tplenv --file manifest.template.yaml --create-values-file --output manifests/manifest.yaml --indent
+EOF
+)"
+pe "$(cat <<'EOF'
+# Render the template with the selected values.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -212,7 +270,15 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Check whether the pull secret already exists.
+EOF
+)"
+pe "$(cat <<'EOF'
 if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  # Print a status message.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -224,11 +290,23 @@ else
 EOF
 )"
 pe "$(cat <<'EOF'
+  # Print a status message.
+EOF
+)"
+pe "$(cat <<'EOF'
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
 EOF
 )"
 pe "$(cat <<'EOF'
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
+  # Load environment variables from the tplenv definition file.
+EOF
+)"
+pe "$(cat <<'EOF'
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-})
+EOF
+)"
+pe "$(cat <<'EOF'
+  # Create the Docker registry pull secret.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -247,11 +325,23 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Apply the Kubernetes manifest.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl apply -f manifests/manifest.yaml
 EOF
 )"
 pe "$(cat <<'EOF'
+# Retry the wrapped command until it succeeds or reaches the retry limit.
+EOF
+)"
+pe "$(cat <<'EOF'
 retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-1
+EOF
+)"
+pe "$(cat <<'EOF'
+# Retry the wrapped command until it succeeds or reaches the retry limit.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -267,6 +357,10 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
+# Delete the Kubernetes resource if it exists.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl delete -f manifests/manifest.yaml
 EOF
 )"
@@ -279,6 +373,10 @@ printf '%s\n' '## 8. Prepare and Apply the SCONE Manifest'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
+pe "$(cat <<'EOF'
+# Generate the confidential image and sanitized manifest from the SCONE configuration.
+EOF
+)"
 pe "$(cat <<'EOF'
 scone-td-build from -y manifests/scone.yaml
 EOF
@@ -297,6 +395,10 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Apply the Kubernetes manifest.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl apply -f manifests/manifest.prod.sanitized.yaml
 EOF
 )"
@@ -308,7 +410,15 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Retry the wrapped command until it succeeds or reaches the retry limit.
+EOF
+)"
+pe "$(cat <<'EOF'
 retry-spinner -- kubectl logs job/my-rust-app -c reader-1 --follow
+EOF
+)"
+pe "$(cat <<'EOF'
+# Retry the wrapped command until it succeeds or reaches the retry limit.
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -323,7 +433,15 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Delete the Kubernetes resource if it exists.
+EOF
+)"
+pe "$(cat <<'EOF'
 kubectl delete -f manifests/manifest.prod.sanitized.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
+# Return to the previous working directory.
 EOF
 )"
 pe "$(cat <<'EOF'

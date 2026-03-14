@@ -22,7 +22,9 @@ Follow the [Setup environment](https://github.com/scontain/scone) guide to insta
 We assume you start in `scone-td-build-demos`:
 
 ```bash
+# Enter `hello-world` and remember the previous directory.
 pushd hello-world
+# Remove `storage.json` if it exists.
 rm -f storage.json || true
 ```
 
@@ -45,12 +47,14 @@ For the confidential deployment:
 Defaults are stored in `Values.yaml`. We use [`tplenv`](https://github.com/scontainug/tplenv) to confirm or override values:
 
 ```bash
+# Load environment variables from the tplenv definition file.
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
 ```
 
 Generate the job manifest with the selected image and pull-secret values:
 
 ```bash
+# Render the template with the selected values.
 tplenv --file manifest.job.template.yaml --create-values-file --output manifest.job.yaml
 ```
 
@@ -59,13 +63,16 @@ tplenv --file manifest.job.template.yaml --create-values-file --output manifest.
 Create the Rust project (or reuse an existing one):
 
 ```bash
+# Create the Rust project in `hello-world` if it does not already exist.
 cargo new hello-world || echo "Hello World already exists - using existing one"
 ```
 
 Build and push the image:
 
 ```bash
+# Build the container image.
 docker build -t $IMAGE_NAME .
+# Push the container image to the registry.
 docker push $IMAGE_NAME
 ```
 
@@ -78,11 +85,16 @@ If the pull secret does not exist yet, create it using registry credentials.
 - `$REGISTRY_TOKEN` - Registry pull token (see <https://sconedocs.github.io/registry/>)
 
 ```bash
+# Check whether the pull secret already exists.
 if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+  # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
+  # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
+  # Load environment variables from the tplenv definition file.
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
+  # Create the Docker registry pull secret.
   kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 ```
@@ -90,21 +102,27 @@ fi
 ## 5. Run the Native Hello-World Application
 
 ```bash
+# Delete the Kubernetes resource if it exists.
 kubectl delete job hello-world || echo "ok - no previous job that we need to delete"
+# Apply the Kubernetes manifest.
 kubectl apply -f manifest.job.yaml
 ```
 
 Wait for completion and stream logs:
 
 ```bash
+# Wait for the Kubernetes resource to reach the expected state.
 kubectl wait --for=condition=complete job/hello-world --timeout=300s
+# Show logs from the Kubernetes workload.
 kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps
 ```
 
 Clean up:
 
 ```bash
+# Delete the Kubernetes resource if it exists.
 kubectl delete job hello-world
+# Wait for the Kubernetes resource to reach the expected state.
 kubectl wait --for=delete pod -l app=hello-world --timeout=300s
 ```
 
@@ -113,6 +131,7 @@ kubectl wait --for=delete pod -l app=hello-world --timeout=300s
 Before sending encrypted policies to CAS, attest CAS via the Kubernetes API:
 
 ```bash
+# Attest the CAS instance before sending encrypted policies.
 kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is ok if you first attested using *scone cas attest ..."
 ```
 
@@ -123,6 +142,7 @@ If attestation fails, inspect the command output for detected vulnerabilities an
 Register the image for confidential execution:
 
 ```bash
+# Register the image for confidential execution.
 scone-td-build register --protected-image $IMAGE_NAME --unprotected-image rust:latest --manifest-env SCONE_PRODUCTION=0 -s ./storage.json --destination-image ${DESTINATION_IMAGE_NAME} --push --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE}
 ```
 
@@ -133,22 +153,29 @@ This creates a protected image (or uses `--destination-image` if provided) and d
 Convert the native manifest into a sanitized confidential manifest:
 
 ```bash
+# Convert the native manifest into a confidential manifest.
 scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --spol --manifest-env SCONE_VERSION=1 ${CVM_MODE} ${SCONE_ENCLAVE}
 ```
 
 ## 9. Deploy the Confidential Manifest
 
 ```bash
+# Apply the Kubernetes manifest.
 kubectl apply -f manifest.job.cleaned.yaml
+# Wait for the Kubernetes resource to reach the expected state.
 kubectl wait --for=condition=complete job/hello-world --timeout=300s
+# Show logs from the Kubernetes workload.
 kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps
 ```
 
 ## 10. Uninstall `hello-world`
 
 ```bash
+# Delete the Kubernetes resource if it exists.
 kubectl delete job hello-world
+# Wait for the Kubernetes resource to reach the expected state.
 kubectl wait --for=delete pod -l app=hello-world --timeout=300s
+# Return to the previous working directory.
 popd
 ```
 

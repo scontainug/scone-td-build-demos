@@ -17,7 +17,9 @@ Each example includes a generated script. These scripts suggest default values a
 
 After these `Values.yaml` files are initialized, you can run all examples with:
 
-```bash
+```
+# Export the non-interactive variable loading mode.
 export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--value-file-only"
+# Run the generated scripts for all demos.
 ./scripts/run-all-scripts.sh
 ```

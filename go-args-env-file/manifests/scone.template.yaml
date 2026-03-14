@@ -38,3 +38,12 @@ spec:
   spol: false
   cvm: ${CVM_MODE}
   scone_enclave: ${SCONE_ENCLAVE}
+  access_policy:
+    read:
+      - ANY
+    update:
+      - signer: |
+          ${SIGNER}
+    create_sessions:
+      - signer: |
+          ${SIGNER}

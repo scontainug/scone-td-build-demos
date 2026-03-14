@@ -2,7 +2,7 @@ environment:
   IMAGE_PULL_SECRET_NAME: sconeapps
   CAS_NAMESPACE: default
   CAS_NAME: cas
-  SCONE_VERSION: 6.1.0-rc.0
+  SCONE_RUNTIME_VERSION: 6.1.0-rc.0
   CVM_MODE: 'true'
   SCONE_ENCLAVE: 'true'
   REGISTRY: registry.scontain.com
@@ -11,3 +11,7 @@ environment:
   CLIENT_IMAGE: registry.scontain.com/workshop/network-policy:client
   SERVER_IMAGE: registry.scontain.com/workshop/network-policy:server
   SCRIPT_DIR: .
+  SIGNER: |-
+    -----BEGIN PUBLIC KEY-----
+    MCowBQYDK2VwAyEAvSRST+dhEaX42c6VkY1Sv+KVelnSup96M6TMHOlqcrg=
+    -----END PUBLIC KEY-----

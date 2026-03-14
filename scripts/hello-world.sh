@@ -6,24 +6,31 @@ set -euo pipefail
 VIOLET='\033[38;5;141m'
 ORANGE='\033[38;5;208m'
 RESET='\033[0m'
-CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:---force}"
 
 show_help() {
   cat <<USAGE
-Usage: $0 [--help]
+Usage: $0 [--help] [--non-interactive]
 
 Runs shell commands extracted from hello-world/README.md.
 
 Options:
-  --help  Show this help message and exit.
+  --help             Show this help message and exit.
+  --non-interactive  Do not force confirmation for existing tplenv values.
 USAGE
 }
+
+NON_INTERACTIVE=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help)
       show_help
       exit 0
+      ;;
+    --non-interactive)
+      NON_INTERACTIVE=true
+      unset CONFIRM_ALL_ENVIRONMENT_VARIABLES || true
+      shift
       ;;
     --)
       shift
@@ -45,6 +52,21 @@ done
 if [[ $# -gt 0 ]]; then
   echo "Error: This script does not accept positional arguments." >&2
   show_help >&2
+  exit 1
+fi
+
+if ! $NON_INTERACTIVE; then
+  CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
+fi
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+expected_workdir="$(cd "${script_dir}/.." && pwd)"
+expected_invocation="./$(basename "${script_dir}")/$(basename "$0")"
+
+if [[ "$(pwd)" != "$expected_workdir" ]]; then
+  echo "Error: Wrong working directory." >&2
+  echo "Expected working directory: $expected_workdir" >&2
+  echo "Run this script as: $expected_invocation" >&2
   exit 1
 fi
 
@@ -75,11 +97,15 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Enter `hello-world` and remember the previous directory.'
 printf '%s\n' 'pushd hello-world'
+printf '%s\n' '# Remove `storage.json` if it exists.'
 printf '%s\n' 'rm -f storage.json || true'
 printf "${RESET}"
 
+# Enter `hello-world` and remember the previous directory.
 pushd hello-world
+# Remove `storage.json` if it exists.
 rm -f storage.json || true
 
 printf "${VIOLET}"
@@ -105,10 +131,12 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)'
+printf '%s\n' '# Load environment variables from the tplenv definition file.'
+printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)'
 printf "${RESET}"
 
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
+# Load environment variables from the tplenv definition file.
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -117,9 +145,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Render the template with the selected values.'
 printf '%s\n' 'tplenv --file manifest.job.template.yaml --create-values-file --output manifest.job.yaml'
 printf "${RESET}"
 
+# Render the template with the selected values.
 tplenv --file manifest.job.template.yaml --create-values-file --output manifest.job.yaml
 
 printf "${VIOLET}"
@@ -131,9 +161,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Create the Rust project in `hello-world` if it does not already exist.'
 printf '%s\n' 'cargo new hello-world || echo "Hello World already exists - using existing one"'
 printf "${RESET}"
 
+# Create the Rust project in `hello-world` if it does not already exist.
 cargo new hello-world || echo "Hello World already exists - using existing one"
 
 printf "${VIOLET}"
@@ -143,11 +175,15 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Build the container image.'
 printf '%s\n' 'docker build -t $IMAGE_NAME .'
+printf '%s\n' '# Push the container image to the registry.'
 printf '%s\n' 'docker push $IMAGE_NAME'
 printf "${RESET}"
 
+# Build the container image.
 docker build -t $IMAGE_NAME .
+# Push the container image to the registry.
 docker push $IMAGE_NAME
 
 printf "${VIOLET}"
@@ -163,20 +199,30 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Check whether the pull secret already exists.'
 printf '%s\n' 'if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then'
+printf '%s\n' '  # Print a status message.'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"'
 printf '%s\n' 'else'
+printf '%s\n' '  # Print a status message.'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."'
-printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})'
+printf '%s\n' '  # Load environment variables from the tplenv definition file.'
+printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-})'
+printf '%s\n' '  # Create the Docker registry pull secret.'
 printf '%s\n' '  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
+# Check whether the pull secret already exists.
 if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+  # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
+  # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
+  # Load environment variables from the tplenv definition file.
+  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-})
+  # Create the Docker registry pull secret.
   kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 
@@ -187,11 +233,15 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Delete the Kubernetes resource if it exists.'
 printf '%s\n' 'kubectl delete job hello-world || echo "ok - no previous job that we need to delete"'
+printf '%s\n' '# Apply the Kubernetes manifest.'
 printf '%s\n' 'kubectl apply -f manifest.job.yaml'
 printf "${RESET}"
 
+# Delete the Kubernetes resource if it exists.
 kubectl delete job hello-world || echo "ok - no previous job that we need to delete"
+# Apply the Kubernetes manifest.
 kubectl apply -f manifest.job.yaml
 
 printf "${VIOLET}"
@@ -201,11 +251,15 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
 printf '%s\n' 'kubectl wait --for=condition=complete job/hello-world --timeout=300s'
+printf '%s\n' '# Show logs from the Kubernetes workload.'
 printf '%s\n' 'kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps'
 printf "${RESET}"
 
+# Wait for the Kubernetes resource to reach the expected state.
 kubectl wait --for=condition=complete job/hello-world --timeout=300s
+# Show logs from the Kubernetes workload.
 kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps
 
 printf "${VIOLET}"
@@ -215,11 +269,15 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Delete the Kubernetes resource if it exists.'
 printf '%s\n' 'kubectl delete job hello-world'
+printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
 printf '%s\n' 'kubectl wait --for=delete pod -l app=hello-world --timeout=300s'
 printf "${RESET}"
 
+# Delete the Kubernetes resource if it exists.
 kubectl delete job hello-world
+# Wait for the Kubernetes resource to reach the expected state.
 kubectl wait --for=delete pod -l app=hello-world --timeout=300s
 
 printf "${VIOLET}"
@@ -231,9 +289,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Attest the CAS instance before sending encrypted policies.'
 printf '%s\n' 'kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is ok if you first attested using *scone cas attest ..."'
 printf "${RESET}"
 
+# Attest the CAS instance before sending encrypted policies.
 kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is ok if you first attested using *scone cas attest ..."
 
 printf "${VIOLET}"
@@ -247,10 +307,12 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'scone-td-build register --protected-image $IMAGE_NAME --unprotected-image rust:latest --manifest-env SCONE_PRODUCTION=0 -s ./storage.json --destination-image ${DESTINATION_IMAGE_NAME} --push --version ${SCONE_VERSION} ${CVM_MODE}'
+printf '%s\n' '# Register the image for confidential execution.'
+printf '%s\n' 'scone-td-build register --protected-image $IMAGE_NAME --unprotected-image rust:latest --manifest-env SCONE_PRODUCTION=0 -s ./storage.json --destination-image ${DESTINATION_IMAGE_NAME} --push --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE}'
 printf "${RESET}"
 
-scone-td-build register --protected-image $IMAGE_NAME --unprotected-image rust:latest --manifest-env SCONE_PRODUCTION=0 -s ./storage.json --destination-image ${DESTINATION_IMAGE_NAME} --push --version ${SCONE_VERSION} ${CVM_MODE}
+# Register the image for confidential execution.
+scone-td-build register --protected-image $IMAGE_NAME --unprotected-image rust:latest --manifest-env SCONE_PRODUCTION=0 -s ./storage.json --destination-image ${DESTINATION_IMAGE_NAME} --push --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE}
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -263,9 +325,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Convert the native manifest into a confidential manifest.'
 printf '%s\n' 'scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --spol --manifest-env SCONE_VERSION=1 ${CVM_MODE} ${SCONE_ENCLAVE}'
 printf "${RESET}"
 
+# Convert the native manifest into a confidential manifest.
 scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --spol --manifest-env SCONE_VERSION=1 ${CVM_MODE} ${SCONE_ENCLAVE}
 
 printf "${VIOLET}"
@@ -275,13 +339,19 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Apply the Kubernetes manifest.'
 printf '%s\n' 'kubectl apply -f manifest.job.cleaned.yaml'
+printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
 printf '%s\n' 'kubectl wait --for=condition=complete job/hello-world --timeout=300s'
+printf '%s\n' '# Show logs from the Kubernetes workload.'
 printf '%s\n' 'kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps'
 printf "${RESET}"
 
+# Apply the Kubernetes manifest.
 kubectl apply -f manifest.job.cleaned.yaml
+# Wait for the Kubernetes resource to reach the expected state.
 kubectl wait --for=condition=complete job/hello-world --timeout=300s
+# Show logs from the Kubernetes workload.
 kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps
 
 printf "${VIOLET}"
@@ -291,13 +361,19 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Delete the Kubernetes resource if it exists.'
 printf '%s\n' 'kubectl delete job hello-world'
+printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
 printf '%s\n' 'kubectl wait --for=delete pod -l app=hello-world --timeout=300s'
+printf '%s\n' '# Return to the previous working directory.'
 printf '%s\n' 'popd'
 printf "${RESET}"
 
+# Delete the Kubernetes resource if it exists.
 kubectl delete job hello-world
+# Wait for the Kubernetes resource to reach the expected state.
 kubectl wait --for=delete pod -l app=hello-world --timeout=300s
+# Return to the previous working directory.
 popd
 
 printf "${VIOLET}"

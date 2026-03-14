@@ -22,7 +22,9 @@ Follow the [Setup environment](https://github.com/scontain/scone) guide. The eas
 Assume you start in `scone-td-build-demos` and switch into this demo directory:
 
 ```bash
+# Enter `configmap` and remember the previous directory.
 pushd configmap
+# Remove `configmap-example.json` if it exists.
 rm -f configmap-example.json || true
 ```
 
@@ -40,28 +42,36 @@ Default values are stored in `Values.yaml`. `tplenv` asks whether to keep the de
 Set `SIGNER` for policy signing:
 
 ```bash
+# Export the required environment variable for the next steps.
 export SIGNER="$(scone self show-session-signing-key)"
 ```
 
 Load the full variable set from `environment-variables.md`:
 
 ```bash
+# Load environment variables from the tplenv definition file.
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
 ```
 
 ## 4. Build the Native Rust Image
 
 ```bash
+# Enter `folder-reader` and remember the previous directory.
 pushd folder-reader
+# Build the container image.
 docker build -t ${DEMO_IMAGE} .
+# Push the container image to the registry.
 docker push ${DEMO_IMAGE}
+# Return to the previous working directory.
 popd
 ```
 
 ## 5. Render the Manifests
 
 ```bash
+# Render the template with the selected values.
 tplenv --file manifest.template.yaml --create-values-file --output manifests/manifest.yaml --indent
+# Render the template with the selected values.
 tplenv --file scone.template.yaml --create-values-file --output manifests/scone.yaml --indent
 ```
 
@@ -76,11 +86,16 @@ If you need a pull secret for native and confidential images, create it when mis
 - `$REGISTRY_TOKEN` - Registry pull token (see <https://sconedocs.github.io/registry/>)
 
 ```bash
+# Check whether the pull secret already exists.
 if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+  # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
+  # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
+  # Load environment variables from the tplenv definition file.
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
+  # Create the Docker registry pull secret.
   kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 ```
@@ -88,11 +103,15 @@ fi
 ## 7. Deploy the Native App (Optional)
 
 ```bash
+# Apply the Kubernetes manifest.
 kubectl apply -f manifests/manifest.yaml
+# Retry the wrapped command until it succeeds or reaches the retry limit.
 retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-1
+# Retry the wrapped command until it succeeds or reaches the retry limit.
 retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-2
 
 # Clean up native app
+# Delete the Kubernetes resource if it exists.
 kubectl delete -f manifests/manifest.yaml
 ```
 
@@ -101,6 +120,7 @@ Your containers should print content from the mounted ConfigMap files.
 ## 8. Prepare and Apply the SCONE Manifest
 
 ```bash
+# Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y manifests/scone.yaml
 ```
 
@@ -113,19 +133,24 @@ This command:
 ## 9. Deploy the SCONE-Protected App
 
 ```bash
+# Apply the Kubernetes manifest.
 kubectl apply -f manifests/manifest.prod.sanitized.yaml
 ```
 
 ## 10. View Logs
 
 ```bash
+# Retry the wrapped command until it succeeds or reaches the retry limit.
 retry-spinner -- kubectl logs job/my-rust-app -c reader-1 --follow
+# Retry the wrapped command until it succeeds or reaches the retry limit.
 retry-spinner -- kubectl logs job/my-rust-app -c reader-2 --follow
 ```
 
 ## 11. Clean Up
 
 ```bash
+# Delete the Kubernetes resource if it exists.
 kubectl delete -f manifests/manifest.prod.sanitized.yaml
+# Return to the previous working directory.
 popd
 ```

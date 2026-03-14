@@ -6,24 +6,31 @@ set -euo pipefail
 VIOLET='\033[38;5;141m'
 ORANGE='\033[38;5;208m'
 RESET='\033[0m'
-CONFIRM_ALL_ENVIRONMENT_VARIABLES="${CONFIRM_ALL_ENVIRONMENT_VARIABLES:---force}"
 
 show_help() {
   cat <<USAGE
-Usage: $0 [--help]
+Usage: $0 [--help] [--non-interactive]
 
 Runs shell commands extracted from go-args-env-file/README.md.
 
 Options:
-  --help  Show this help message and exit.
+  --help             Show this help message and exit.
+  --non-interactive  Do not force confirmation for existing tplenv values.
 USAGE
 }
+
+NON_INTERACTIVE=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --help)
       show_help
       exit 0
+      ;;
+    --non-interactive)
+      NON_INTERACTIVE=true
+      unset CONFIRM_ALL_ENVIRONMENT_VARIABLES || true
+      shift
       ;;
     --)
       shift
@@ -45,6 +52,21 @@ done
 if [[ $# -gt 0 ]]; then
   echo "Error: This script does not accept positional arguments." >&2
   show_help >&2
+  exit 1
+fi
+
+if ! $NON_INTERACTIVE; then
+  CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"
+fi
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+expected_workdir="$(cd "${script_dir}/.." && pwd)"
+expected_invocation="./$(basename "${script_dir}")/$(basename "$0")"
+
+if [[ "$(pwd)" != "$expected_workdir" ]]; then
+  echo "Error: Wrong working directory." >&2
+  echo "Expected working directory: $expected_workdir" >&2
+  echo "Run this script as: $expected_invocation" >&2
   exit 1
 fi
 
@@ -91,9 +113,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Change into `go-args-env-file`.'
 printf '%s\n' 'cd go-args-env-file'
 printf "${RESET}"
 
+# Change into `go-args-env-file`.
 cd go-args-env-file
 
 printf "${VIOLET}"
@@ -107,7 +131,7 @@ printf '%s\n' ''
 printf '%s\n' '- `$DEMO_IMAGE` — Name of the native image to deploy'
 printf '%s\n' '- `$DESTINATION_IMAGE_NAME` — Name of the confidential (SCONE-protected) image'
 printf '%s\n' '- `$IMAGE_PULL_SECRET_NAME` — Pull secret name (default: `sconeapps`)'
-printf '%s\n' '- `$SCONE_VERSION` — SCONE version to use (for example, `6.1.0-rc.0`)'
+printf '%s\n' '- `$SCONE_RUNTIME_VERSION` — SCONE version to use (for example, `6.1.0-rc.0`)'
 printf '%s\n' '- `$CAS_NAMESPACE` — CAS namespace (for example, `default`)'
 printf '%s\n' '- `$CAS_NAME` — CAS name (for example, `cas`)'
 printf '%s\n' '- `$CVM_MODE` — Set to `--cvm` for CVM mode, otherwise leave empty for SGX'
@@ -118,9 +142,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Export the required environment variable for the next steps.'
 printf '%s\n' 'export SIGNER="$(scone self show-session-signing-key)"'
 printf "${RESET}"
 
+# Export the required environment variable for the next steps.
 export SIGNER="$(scone self show-session-signing-key)"
 
 printf "${VIOLET}"
@@ -130,10 +156,12 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval --force --output /dev/null)'
+printf '%s\n' '# Load environment variables from the tplenv definition file.'
+printf '%s\n' 'eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)'
 printf "${RESET}"
 
-eval $(tplenv --file environment-variables.md --create-values-file --context --eval --force --output /dev/null)
+# Load environment variables from the tplenv definition file.
+eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -146,11 +174,15 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Build the container image.'
 printf '%s\n' 'docker build -t ${DEMO_IMAGE} .'
+printf '%s\n' '# Push the container image to the registry.'
 printf '%s\n' 'docker push ${DEMO_IMAGE}'
 printf "${RESET}"
 
+# Build the container image.
 docker build -t ${DEMO_IMAGE} .
+# Push the container image to the registry.
 docker push ${DEMO_IMAGE}
 
 printf "${VIOLET}"
@@ -185,11 +217,15 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Render the template with the selected values.'
 printf '%s\n' 'tplenv --file manifests/manifest.template.yaml --create-values-file --output manifests/manifest.yaml --indent'
+printf '%s\n' '# Render the template with the selected values.'
 printf '%s\n' 'tplenv --file manifests/scone.template.yaml    --create-values-file --output manifests/scone.yaml    --indent'
 printf "${RESET}"
 
+# Render the template with the selected values.
 tplenv --file manifests/manifest.template.yaml --create-values-file --output manifests/manifest.yaml --indent
+# Render the template with the selected values.
 tplenv --file manifests/scone.template.yaml    --create-values-file --output manifests/scone.yaml    --indent
 
 printf "${VIOLET}"
@@ -209,9 +245,12 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Check whether the pull secret already exists.'
 printf '%s\n' 'if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then'
+printf '%s\n' '  # Print a status message.'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"'
 printf '%s\n' 'else'
+printf '%s\n' '  # Create the Docker registry pull secret.'
 printf '%s\n' '  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" \'
 printf '%s\n' '    --docker-server=$REGISTRY \'
 printf '%s\n' '    --docker-username=$REGISTRY_USER \'
@@ -219,9 +258,12 @@ printf '%s\n' '    --docker-password=$REGISTRY_TOKEN'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
+# Check whether the pull secret already exists.
 if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+  # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
+  # Create the Docker registry pull secret.
   kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" \
     --docker-server=$REGISTRY \
     --docker-username=$REGISTRY_USER \
@@ -239,11 +281,15 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Apply the Kubernetes manifest.'
 printf '%s\n' 'kubectl apply -f manifests/manifest.yaml'
+printf '%s\n' '# Retry the wrapped command until it succeeds or reaches the retry limit.'
 printf '%s\n' 'retry-spinner --retries 10 --wait 2 -- kubectl logs deployment/go-args-env-file'
 printf "${RESET}"
 
+# Apply the Kubernetes manifest.
 kubectl apply -f manifests/manifest.yaml
+# Retry the wrapped command until it succeeds or reaches the retry limit.
 retry-spinner --retries 10 --wait 2 -- kubectl logs deployment/go-args-env-file
 
 printf "${VIOLET}"
@@ -255,9 +301,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Delete the Kubernetes resource if it exists.'
 printf '%s\n' 'kubectl delete -f manifests/manifest.yaml'
 printf "${RESET}"
 
+# Delete the Kubernetes resource if it exists.
 kubectl delete -f manifests/manifest.yaml
 
 printf "${VIOLET}"
@@ -275,9 +323,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Generate the confidential image and sanitized manifest from the SCONE configuration.'
 printf '%s\n' 'scone-td-build from -y manifests/scone.yaml'
 printf "${RESET}"
 
+# Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y manifests/scone.yaml
 
 printf "${VIOLET}"
@@ -295,9 +345,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Apply the Kubernetes manifest.'
 printf '%s\n' 'kubectl apply -f manifests/manifest.prod.sanitized.yaml'
 printf "${RESET}"
 
+# Apply the Kubernetes manifest.
 kubectl apply -f manifests/manifest.prod.sanitized.yaml
 
 printf "${VIOLET}"
@@ -309,9 +361,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Retry the wrapped command until it succeeds or reaches the retry limit.'
 printf '%s\n' 'retry-spinner -- kubectl logs deployment/go-args-env-file --follow'
 printf "${RESET}"
 
+# Retry the wrapped command until it succeeds or reaches the retry limit.
 retry-spinner -- kubectl logs deployment/go-args-env-file --follow
 
 printf "${VIOLET}"
@@ -323,9 +377,11 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
+printf '%s\n' '# Delete the Kubernetes resource if it exists.'
 printf '%s\n' 'kubectl delete -f manifests/manifest.prod.sanitized.yaml'
 printf "${RESET}"
 
+# Delete the Kubernetes resource if it exists.
 kubectl delete -f manifests/manifest.prod.sanitized.yaml
 
 printf "${VIOLET}"
