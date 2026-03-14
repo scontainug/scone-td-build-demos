@@ -73,9 +73,11 @@ fi
 printf "${VIOLET}"
 printf '%s\n' '# go-args-env-file'
 printf '%s\n' ''
-printf '%s\n' 'A Go utility that prints command-line arguments, environment variables, and reads two config files from `/config/`. It then sleeps for 1 minute (keeping a container alive) before exiting cleanly — mirroring the behaviour of a Java reference implementation.'
+printf '%s\n' 'A Go utility that prints command-line arguments, environment variables, and reads two config files from `/config/`. It then sleeps for about 10 seconds before exiting cleanly, mirroring the behavior of a Java reference implementation.'
 printf '%s\n' ''
 printf '%s\n' 'This example shows how to manage and access configuration data in Kubernetes with a `ConfigMap` and a Go application. You start with a plain (unencrypted) deployment and then move to a fully protected SCONE deployment.'
+printf '%s\n' ''
+printf '%s\n' '[![go-args-env-file Example](../docs/go-args-env-file.gif)](../docs/go-args-env-file.mp4)'
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''
@@ -298,7 +300,7 @@ kubectl logs job/go-args-env-file
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'Your container should print the command-line args, all environment variables, the contents of `/config/configs.yaml`, and `/config/secrets`.'
+printf '%s\n' 'Your container should print the command-line arguments, all environment variables, the contents of `/config/configs.yaml`, and `/config/secrets`.'
 printf '%s\n' ''
 printf '%s\n' 'Clean up the native deployment before moving on:'
 printf '%s\n' ''
@@ -409,6 +411,6 @@ printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '## Signal handling'
 printf '%s\n' ''
-printf '%s\n' 'The process listens for `SIGINT` and `SIGTERM`. On receipt it prints the signal name to **stderr** and exits immediately, making it suitable for graceful shutdown in containerised environments.'
+printf '%s\n' 'The process listens for `SIGINT` and `SIGTERM`. On receipt it prints the signal name to **stderr** and exits immediately, making it suitable for graceful shutdown in containerized environments.'
 printf "${RESET}"
 

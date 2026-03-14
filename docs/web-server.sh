@@ -98,6 +98,8 @@ if [[ $# -gt 0 ]]; then
   exit 1
 fi
 
+unset CONFIRM_ALL_ENVIRONMENT_VARIABLES || true
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 expected_workdir="$(cd "${script_dir}/.." && pwd)"
 expected_invocation="./$(basename "${script_dir}")/$(basename "$0")"
@@ -221,7 +223,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is ok if you first attested using *scone cas attest ..."
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is OK if you first attested using *scone cas attest ..."
 EOF
 )"
 

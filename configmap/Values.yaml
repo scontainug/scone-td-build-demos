@@ -5,8 +5,9 @@ environment:
   SCONE_RUNTIME_VERSION: 6.1.0-rc.0
   CAS_NAMESPACE: default
   CAS_NAME: cas
-  CVM_MODE: 'true'
-  SCONE_ENCLAVE: 'true'
+  CVM_MODE: 'false'
+  SCONE_ENCLAVE: 'false'
+  REGISTRY: registry.scontain.com
   SIGNER: |-
     -----BEGIN PUBLIC KEY-----
     MCowBQYDK2VwAyEAvSRST+dhEaX42c6VkY1Sv+KVelnSup96M6TMHOlqcrg=

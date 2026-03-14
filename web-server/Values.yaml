@@ -5,6 +5,6 @@ environment:
   CAS_NAME: cas
   DESTINATION_IMAGE_NAME: registry.scontain.com/workshop/web-server:protected
   SCONE_RUNTIME_VERSION: 6.1.0-rc.0
-  CVM_MODE: --cvm
-  SCONE_ENCLAVE: --scone-enclave
+  CVM_MODE: ''
+  SCONE_ENCLAVE: ''
   REGISTRY: registry.scontain.com

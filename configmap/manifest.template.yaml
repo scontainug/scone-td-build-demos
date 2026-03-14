@@ -27,7 +27,7 @@ data:
     Jsvt6KP3H2ANqPvPjQ==
     -----END CERTIFICATE-----
   your_python_script.py: |
-    # Contents of your Python script here
+    # Put your Python script here.
     print("Hello from the Python script!")
   file1.txt: |
     Welcome to the ConfigMap example.

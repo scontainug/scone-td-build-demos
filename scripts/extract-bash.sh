@@ -153,7 +153,10 @@ write_generated_help() {
     echo '  exit 1'
     echo 'fi'
     echo
-    if [[ "$script_mode" == "default" ]]; then
+    if [[ "$script_mode" == "docs-pe" ]]; then
+      echo 'unset CONFIRM_ALL_ENVIRONMENT_VARIABLES || true'
+      echo
+    elif [[ "$script_mode" == "default" ]]; then
       echo 'if ! $NON_INTERACTIVE; then'
       echo '  CONFIRM_ALL_ENVIRONMENT_VARIABLES="--force"'
       echo 'fi'

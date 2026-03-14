@@ -290,11 +290,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Attest the CAS instance before sending encrypted policies.'
-printf '%s\n' 'kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is ok if you first attested using *scone cas attest ..."'
+printf '%s\n' 'kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is OK if you first attested using *scone cas attest ..."'
 printf "${RESET}"
 
 # Attest the CAS instance before sending encrypted policies.
-kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is ok if you first attested using *scone cas attest ..."
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is OK if you first attested using *scone cas attest ..."
 
 printf "${VIOLET}"
 printf '%s\n' ''

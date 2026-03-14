@@ -1,7 +1,7 @@
-# flask-redis
+# Flask Redis
 
 A Flask REST API backed by a TLS-secured Redis instance, packaged for Kubernetes.
-This guide walks through deploying the **native** version first, running integration tests, then building and deploying the **confidential** (SCONE) version and testing it again.
+This guide walks through deploying the **native** version first, running integration tests, and then building and deploying the **confidential** (SCONE) version before testing it again.
 
 [![Flask Redis Example](../docs/flask-redis.gif)](../docs/flask-redis.mp4)
 
@@ -40,7 +40,7 @@ flask-redis/
 cd flask-redis
 # Create `certs` if it does not already exist.
 mkdir -p certs
-# cleanup
+# Clean up
 # Remove `flask-redis/flask-redis-demo.json` if it exists.
 rm -f flask-redis/flask-redis-demo.json || true
 
@@ -121,7 +121,7 @@ We try to ensure the namespace exists. This may fail when running in a container
 
 ```bash
 # Create the Kubernetes namespace if it does not already exist.
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 ```
 
 ---
@@ -308,7 +308,7 @@ kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-
 
 ### Step 10. Build the confidential (SCONE) images
 
-When transforming the binaries in the container image for confidential computing, we sign the binaries with a key. `scone-td-build` assumes, by default, that this key is stored in file `identity.pem`. We can generate this file as follows:
+When transforming the binaries in the container image for confidential computing, we sign the binaries with a key. By default, `scone-td-build` assumes that this key is stored in the file `identity.pem`. We can generate this file as follows:
 
 - we first check if the file exists, and
 - if it does not exist, we create it with `openssl`

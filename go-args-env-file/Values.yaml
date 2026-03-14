@@ -1,12 +1,12 @@
 environment:
   DEMO_IMAGE: registry.scontain.com/k8s-scone-images/go-args-env-file:native
   DESTINATION_IMAGE_NAME: registry.scontain.com/k8s-scone-images/go-args-env-file:protected
-  REGISTRY: ''
+  REGISTRY: registry.scontain.com
   IMAGE_PULL_SECRET_NAME: sconeapps
   CAS_NAMESPACE: default
   CAS_NAME: cas
-  CVM_MODE: 'true'
-  SCONE_ENCLAVE: 'true'
+  CVM_MODE: 'false'
+  SCONE_ENCLAVE: 'false'
   SCONE_RUNTIME_VERSION: 6.1.0-rc.0
   SIGNER: |-
     -----BEGIN PUBLIC KEY-----

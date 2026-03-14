@@ -1,0 +1,113 @@
+name: Test Examples on Self-Hosted Runner
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: test-examples-self-hosted
+  cancel-in-progress: false
+
+jobs:
+  run-all-examples:
+    name: Run all examples in SGX and CVM mode
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: self-hosted
+    container:
+      image: registry.scontain.com/workshop/scone
+      credentials:
+        username: ${{ secrets.REGISTRY_USER }}
+        password: ${{ secrets.REGISTRY_TOKEN }}
+      options: --user 0 --volume /var/run/docker.sock:/var/run/docker.sock
+    timeout-minutes: 240
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      KUBECONFIG: /tmp/kubeconfig
+      REGISTRY: registry.scontain.com
+      IMAGE_PULL_SECRET_NAME: sconeapps
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate required GitHub secrets
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          [[ -n "$KUBECONFIG_B64" ]] || { echo "Missing required secret KUBECONFIG_B64" >&2; exit 1; }
+          [[ -n "$REGISTRY_USER" ]] || { echo "Missing required secret REGISTRY_USER" >&2; exit 1; }
+          [[ -n "$REGISTRY_TOKEN" ]] || { echo "Missing required secret REGISTRY_TOKEN" >&2; exit 1; }
+
+      - name: Write kubeconfig
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          mkdir -p "$(dirname "$KUBECONFIG")"
+          printf '%s' "$KUBECONFIG_B64" | base64 --decode > "$KUBECONFIG"
+          chmod 600 "$KUBECONFIG"
+          kubectl cluster-info
+
+      - name: Check container toolchain
+        run: |
+          for cmd in bash docker kubectl scone scone-td-build tplenv retry-spinner openssl jq curl cargo; do
+            command -v "$cmd" >/dev/null 2>&1 || {
+              echo "Missing required command: $cmd" >&2
+              exit 1
+            }
+          done
+
+      - name: Log Docker into the registry
+        env:
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: |
+          printf '%s' "$REGISTRY_TOKEN" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
+
+      - name: Prepare SGX values and cluster secrets
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_PULL_SECRET_NAME: ${{ env.IMAGE_PULL_SECRET_NAME }}
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: ./scripts/prepare-example-ci.sh --mode sgx
+
+      - name: Run all examples in SGX mode
+        id: sgx
+        continue-on-error: true
+        run: ./scripts/run-all-scripts.sh --continue-on-failure
+
+      - name: Prepare CVM values and cluster secrets
+        if: always()
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_PULL_SECRET_NAME: ${{ env.IMAGE_PULL_SECRET_NAME }}
+          REGISTRY_USER: ${{ secrets.REGISTRY_USER }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+        run: ./scripts/prepare-example-ci.sh --mode cvm
+
+      - name: Run all examples in CVM mode
+        id: cvm
+        if: always()
+        continue-on-error: true
+        run: ./scripts/run-all-scripts.sh --continue-on-failure
+
+      - name: Fail workflow if any mode failed
+        if: always()
+        run: |
+          echo "SGX outcome: ${{ steps.sgx.outcome }}"
+          echo "CVM outcome: ${{ steps.cvm.outcome }}"
+          [[ "${{ steps.sgx.outcome }}" == "success" && "${{ steps.cvm.outcome }}" == "success" ]]
+
+      - name: Clean up runner credentials
+        if: always()
+        run: |
+          docker logout "$REGISTRY" || true
+          rm -f "$KUBECONFIG" || true

@@ -1,6 +1,6 @@
 # Container Registry Basics
 
-This section explains the basic concepts used when working with container images and registries.
+This section explains the basic concepts involved in working with container images and registries.
 
 ![RegistryConcepts](docs/registry-concepts.png)
 
@@ -57,9 +57,9 @@ ghcr.io/myorg/myapp:latest
 
 Here:
 
-`myorg/myapp` is the repository
+`myorg/myapp` is the repository.
 
-`1.0`, `1.1`, latest are tags
+`1.0`, `1.1`, and `latest` are tags.
 
 Tags are human-readable identifiers pointing to a specific image.
 
@@ -98,7 +98,7 @@ docker build -t ghcr.io/myorg/myapp:1.0 .
 
 ## Pull
 
-To pull an image means downloading it from a registry.
+To pull an image means to download it from a registry.
 
 Example:
 
@@ -110,7 +110,7 @@ This retrieves the image from the registry to the local machine.
 
 ## Push
 
-To push an image means uploading it to a registry.
+To push an image means to upload it to a registry.
 
 Example:
 

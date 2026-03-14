@@ -71,10 +71,10 @@ if [[ "$(pwd)" != "$expected_workdir" ]]; then
 fi
 
 printf "${VIOLET}"
-printf '%s\n' '# flask-redis'
+printf '%s\n' '# Flask Redis'
 printf '%s\n' ''
 printf '%s\n' 'A Flask REST API backed by a TLS-secured Redis instance, packaged for Kubernetes.'
-printf '%s\n' 'This guide walks through deploying the **native** version first, running integration tests, then building and deploying the **confidential** (SCONE) version and testing it again.'
+printf '%s\n' 'This guide walks through deploying the **native** version first, running integration tests, and then building and deploying the **confidential** (SCONE) version before testing it again.'
 printf '%s\n' ''
 printf '%s\n' '[![Flask Redis Example](../docs/flask-redis.gif)](../docs/flask-redis.mp4)'
 printf '%s\n' ''
@@ -113,7 +113,7 @@ printf '%s\n' '# Change into `flask-redis`.'
 printf '%s\n' 'cd flask-redis'
 printf '%s\n' '# Create `certs` if it does not already exist.'
 printf '%s\n' 'mkdir -p certs'
-printf '%s\n' '# cleanup'
+printf '%s\n' '# Clean up'
 printf '%s\n' '# Remove `flask-redis/flask-redis-demo.json` if it exists.'
 printf '%s\n' 'rm -f flask-redis/flask-redis-demo.json || true'
 printf '%s\n' ''
@@ -156,7 +156,7 @@ printf "${RESET}"
 cd flask-redis
 # Create `certs` if it does not already exist.
 mkdir -p certs
-# cleanup
+# Clean up
 # Remove `flask-redis/flask-redis-demo.json` if it exists.
 rm -f flask-redis/flask-redis-demo.json || true
 
@@ -263,11 +263,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Create the Kubernetes namespace if it does not already exist.'
-printf '%s\n' 'kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"'
+printf '%s\n' 'kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"'
 printf "${RESET}"
 
 # Create the Kubernetes namespace if it does not already exist.
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -605,7 +605,7 @@ printf '%s\n' '## Part 2 — Confidential Deployment (SCONE)'
 printf '%s\n' ''
 printf '%s\n' '### Step 10. Build the confidential (SCONE) images'
 printf '%s\n' ''
-printf '%s\n' 'When transforming the binaries in the container image for confidential computing, we sign the binaries with a key. `scone-td-build` assumes, by default, that this key is stored in file `identity.pem`. We can generate this file as follows:'
+printf '%s\n' 'When transforming the binaries in the container image for confidential computing, we sign the binaries with a key. By default, `scone-td-build` assumes that this key is stored in the file `identity.pem`. We can generate this file as follows:'
 printf '%s\n' ''
 printf '%s\n' '- we first check if the file exists, and'
 printf '%s\n' '- if it does not exist, we create it with `openssl`'

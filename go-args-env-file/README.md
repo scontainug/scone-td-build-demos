@@ -1,8 +1,10 @@
 # go-args-env-file
 
-A Go utility that prints command-line arguments, environment variables, and reads two config files from `/config/`. It then sleeps for 1 minute (keeping a container alive) before exiting cleanly — mirroring the behaviour of a Java reference implementation.
+A Go utility that prints command-line arguments, environment variables, and reads two config files from `/config/`. It then sleeps for about 10 seconds before exiting cleanly, mirroring the behavior of a Java reference implementation.
 
 This example shows how to manage and access configuration data in Kubernetes with a `ConfigMap` and a Go application. You start with a plain (unencrypted) deployment and then move to a fully protected SCONE deployment.
+
+[![go-args-env-file Example](../docs/go-args-env-file.gif)](../docs/go-args-env-file.mp4)
 
 ---
 
@@ -163,7 +165,7 @@ kubectl wait --for=condition=complete job/go-args-env-file --timeout=240s
 kubectl logs job/go-args-env-file
 ```
 
-Your container should print the command-line args, all environment variables, the contents of `/config/configs.yaml`, and `/config/secrets`.
+Your container should print the command-line arguments, all environment variables, the contents of `/config/configs.yaml`, and `/config/secrets`.
 
 Clean up the native deployment before moving on:
 
@@ -237,4 +239,4 @@ kubectl delete -f manifests/manifest.prod.sanitized.yaml
 
 ## Signal handling
 
-The process listens for `SIGINT` and `SIGTERM`. On receipt it prints the signal name to **stderr** and exits immediately, making it suitable for graceful shutdown in containerised environments.
+The process listens for `SIGINT` and `SIGTERM`. On receipt it prints the signal name to **stderr** and exits immediately, making it suitable for graceful shutdown in containerized environments.

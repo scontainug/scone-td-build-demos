@@ -98,6 +98,8 @@ if [[ $# -gt 0 ]]; then
   exit 1
 fi
 
+unset CONFIRM_ALL_ENVIRONMENT_VARIABLES || true
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 expected_workdir="$(cd "${script_dir}/.." && pwd)"
 expected_invocation="./$(basename "${script_dir}")/$(basename "$0")"

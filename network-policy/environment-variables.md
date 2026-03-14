@@ -1,14 +1,11 @@
-1. We push the client network policy image to ${CLIENT_IMAGE}.
-   For example, we use the following image name: 
-        www.scontain.com/workshop/network-policy:client
-   You need to use a different image name since you should not have 
-   push rights to this repo. These should be full image names, including
-   the registry. For example: `docker.io/youruser/demo-client`.
-2. We push the client network policy image to ${SERVER_IMAGE}.
-   For example, we use the following image name: 
-        www.scontain.com/workshop/network-policy:server
-   You need to use a different image name since you should 
-   not have push rights to this repo.
+This file defines the environment variables used to configure the `network-policy` example. The variables below are collected with `tplenv`:
+
+1. The client image is pushed to `${CLIENT_IMAGE}`.
+   Use a full image name, including the registry, for example `docker.io/youruser/demo-client`.
+   You should use your own image name because you likely do not have push access to the example repository.
+2. The server image is pushed to `${SERVER_IMAGE}`.
+   Use a full image name, including the registry, for example `docker.io/youruser/demo-server`.
+   You should use your own image name because you likely do not have push access to the example repository.
 3. The name of the pull secret for both the native and confidential container images is stored in `${IMAGE_PULL_SECRET_NAME}`.
 4. The SCONE version is stored in `${SCONE_RUNTIME_VERSION}`.
    The recommended value is `6.1.0-rc.0`.
@@ -18,5 +15,5 @@
 8. In CVM mode, you can run on confidential Kubernetes nodes or Kata Pods.
    We recommend using confidential nodes and setting `${SCONE_ENCLAVE}` to `true`.
 9. The manifests are stored in `${SCRIPT_DIR}`
-10. We need to set the local signer: `${SIGNER}`
-    This should already be preset to `scone self show-session-signing-key`
+10. Set the local signer key in `${SIGNER}`.
+    This should already be set to the output of `scone self show-session-signing-key`.

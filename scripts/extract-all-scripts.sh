@@ -50,7 +50,6 @@ files=(
   "network-policy/README.md scripts/network-policy.sh"
   "flask-redis/README.md scripts/flask-redis.sh"
   "flask-redis-netshield/README.md scripts/flask-redis-netshield.sh"
-  "flask-redis-netshield/README.md scripts/flask-redis-netshield.sh"
   "go-args-env-file/README.md scripts/go-args-env-file.sh"
 )
 
@@ -114,15 +113,22 @@ run_all_script="scripts/run-all-scripts.sh"
   echo 'fi'
   echo
   echo 'script_args=("--non-interactive")'
+  echo 'continue_on_failure=false'
+  echo 'successful_scripts=()'
+  echo 'failed_scripts=()'
+  echo 'skipped_scripts=()'
+  echo 'summary_printed=false'
   echo
   echo 'show_help() {'
   echo '  cat <<USAGE'
-  echo 'Usage: $0 [--help]'
+  echo 'Usage: $0 [--help] [--continue-on-failure]'
   echo
   echo 'Runs every generated demo script in non-interactive mode.'
   echo
   echo 'Options:'
-  echo '  --help  Show this help message and exit.'
+  echo '  --help                   Show this help message and exit.'
+  echo '  --continue-on-failure    Continue with the next example after a failure.'
+  echo '  "--continue on failure"  Same as --continue-on-failure.'
   echo 'USAGE'
   echo '}'
   echo
@@ -131,6 +137,10 @@ run_all_script="scripts/run-all-scripts.sh"
   echo '    --help)'
   echo '      show_help'
   echo '      exit 0'
+  echo '      ;;'
+  echo "    --continue-on-failure|'--continue on failure')"
+  echo '      continue_on_failure=true'
+  echo '      shift'
   echo '      ;;'
   echo '    --)'
   echo '      shift'
@@ -159,30 +169,83 @@ run_all_script="scripts/run-all-scripts.sh"
   echo '  export SIGNER="$(scone self show-session-signing-key)"'
   echo 'fi'
   echo
-  echo 'current_script=""'
+  echo 'print_script_list() {'
+  echo '  local heading="$1"'
+  echo '  shift'
+  echo '  printf "%s (%d):\n" "$heading" "$#"'
+  echo '  if [[ $# -eq 0 ]]; then'
+  echo '    printf "  - none\n"'
+  echo '    return'
+  echo '  fi'
+  echo '  for script_name in "$@"; do'
+  echo '    printf "  - %s\n" "$script_name"'
+  echo '  done'
+  echo '}'
+  echo
+  echo 'print_summary() {'
+  echo '  if $summary_printed; then'
+  echo '    return'
+  echo '  fi'
+  echo '  summary_printed=true'
+  echo '  printf "\n==> Execution summary\n"'
+  echo '  print_script_list "Successful" "${successful_scripts[@]}"'
+  echo '  print_script_list "Failed" "${failed_scripts[@]}"'
+  echo '  if [[ ${#skipped_scripts[@]} -gt 0 ]]; then'
+  echo '    print_script_list "Not run" "${skipped_scripts[@]}"'
+  echo '  fi'
+  echo '}'
   echo
   echo 'run_script() {'
   echo '  local script_name="$1"'
-  echo '  current_script="$script_name"'
+  echo '  local status'
   echo '  printf "==> Running %s\n" "$script_name"'
-  echo '  "${script_dir}/${script_name}" "${script_args[@]}"'
+  echo '  if "${script_dir}/${script_name}" "${script_args[@]}"; then'
+  echo '    successful_scripts+=("$script_name")'
+  echo '    printf "==> Completed %s\n" "$script_name"'
+  echo '    return 0'
+  echo '  else'
+  echo '    status=$?'
+  echo '    failed_scripts+=("$script_name")'
+  echo '    printf "Error: Script failed: %s (exit %d)\n" "$script_name" "$status" >&2'
+  echo '    return "$status"'
+  echo '  fi'
   echo '}'
   echo
   echo 'handle_exit() {'
   echo '  local exit_status=$?'
-  echo '  if [[ $exit_status -ne 0 && -n "$current_script" ]]; then'
-  echo '    printf "Error: Script failed: %s\n" "$current_script" >&2'
-  echo '  fi'
+  echo '  print_summary'
   echo '  trap - EXIT'
   echo '  exit "$exit_status"'
   echo '}'
   echo
   echo 'trap handle_exit EXIT'
   echo
+  echo 'scripts=('
   for script_path in "${generated_scripts[@]}"; do
     script_name="$(basename "$script_path")"
-    echo "run_script \"${script_name}\""
+    echo "  \"${script_name}\""
   done
+  echo ')'
+  echo
+  echo 'for ((i = 0; i < ${#scripts[@]}; i++)); do'
+  echo '  script_name="${scripts[i]}"'
+  echo '  if run_script "$script_name"; then'
+  echo '    continue'
+  echo '  else'
+  echo '    status=$?'
+  echo '    if ! $continue_on_failure; then'
+  echo '      for ((j = i + 1; j < ${#scripts[@]}; j++)); do'
+  echo '        skipped_scripts+=("${scripts[j]}")'
+  echo '      done'
+  echo '      exit "$status"'
+  echo '    fi'
+  echo '    printf "==> Continuing with remaining scripts\n"'
+  echo '  fi'
+  echo 'done'
+  echo
+  echo 'if [[ ${#failed_scripts[@]} -gt 0 ]]; then'
+  echo '  exit 1'
+  echo 'fi'
 } >"$run_all_tmp"
 
 confirm_overwrite "$run_all_script"

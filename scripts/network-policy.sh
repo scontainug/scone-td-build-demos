@@ -71,9 +71,9 @@ if [[ "$(pwd)" != "$expected_workdir" ]]; then
 fi
 
 printf "${VIOLET}"
-printf '%s\n' '# NetworkPolicy'
+printf '%s\n' '# Network Policy'
 printf '%s\n' ''
-printf '%s\n' 'This guide explains how to build, deploy, and test the **NetworkPolicy demo** with `scone-td-build`. You will build client and server images, generate SCONE-protected images, apply Kubernetes manifests, and verify the result.'
+printf '%s\n' 'This guide explains how to build, deploy, and test the **Network Policy demo** with `scone-td-build`. You will build client and server images, generate SCONE-protected images, apply Kubernetes manifests, and verify the result.'
 printf '%s\n' ''
 printf '%s\n' '[![Network Policy Example](../docs/network-policy.gif)](../docs/network-policy.mp4)'
 printf '%s\n' ''
@@ -275,7 +275,7 @@ printf '%s\n' 'Expected result: a random 7-character password, which confirms:'
 printf '%s\n' ''
 printf '%s\n' '- The application is running correctly'
 printf '%s\n' '- SCONE-protected images are working'
-printf '%s\n' '- NetworkPolicy rules allow intended traffic'
+printf '%s\n' '- Network Policy rules allow the intended traffic'
 printf '%s\n' ''
 printf '%s\n' '## 6. Uninstall the Demo'
 printf '%s\n' ''

@@ -39,7 +39,7 @@ package scopes and reuses the resulting GitHub token for GHCR operations.
 
 # 1. Create a GitHub Repository
 
-First create a normal GitHub repository.
+First, create a regular GitHub repository.
 
 1.  Go to GitHub.
 2.  Click **New Repository**.
@@ -91,9 +91,9 @@ Save the token.
 
 ------------------------------------------------------------------------
 
-# 4. Login to the Registry
+# 4. Log In to the Registry
 
-Use Docker to authenticate to GitHub Container Registry.
+Use Docker to authenticate with GitHub Container Registry.
 
 ``` bash
 docker login ghcr.io
@@ -176,7 +176,7 @@ Create a pull secret:
 kubectl create secret docker-registry ghcr   --docker-server=ghcr.io   --docker-username=USERNAME   --docker-password=TOKEN
 ```
 
-Then reference the secret in a deployment.
+Then reference the secret in a Deployment.
 
 ------------------------------------------------------------------------
 
@@ -192,7 +192,7 @@ Steps to store private container images:
 
 1.  Create a GitHub repository
 2.  Create a Personal Access Token
-3.  Login to `ghcr.io`
+3.  Log in to `ghcr.io`
 4.  Build an image
 5.  Push the image
 6.  Set the package visibility to **Private**

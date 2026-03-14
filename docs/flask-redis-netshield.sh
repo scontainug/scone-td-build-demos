@@ -98,6 +98,8 @@ if [[ $# -gt 0 ]]; then
   exit 1
 fi
 
+unset CONFIRM_ALL_ENVIRONMENT_VARIABLES || true
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 expected_workdir="$(cd "${script_dir}/.." && pwd)"
 expected_invocation="./$(basename "${script_dir}")/$(basename "$0")"
@@ -110,16 +112,16 @@ if [[ "$(pwd)" != "$expected_workdir" ]]; then
 fi
 
 printf "%b" "$LILAC"
-printf '%s\n' '# flask-redis'
+printf '%s\n' '# Flask Redis Netshield'
 printf '%s\n' ''
 printf '%s\n' 'A Flask REST API backed by a TLS-secured Redis instance, packaged for Kubernetes.'
-printf '%s\n' 'This guide walks through deploying the **native** version first, running integration tests, then building and deploying the **confidential** (SCONE) version and testing it again.'
+printf '%s\n' 'This guide walks through deploying the **native** version first, running integration tests, and then building and deploying the **confidential** (SCONE) version before testing it again.'
 printf '%s\n' ''
-printf '%s\n' '![Flask Redis Demo](../docs/flask-redis.gif)'
+printf '%s\n' '[![Flask Redis Netshield Example](../docs/flask-redis-netshield.gif)](../docs/flask-redis-netshield.mp4)'
 printf '%s\n' ''
 printf '%s\n' '## Project Structure'
 printf '%s\n' ''
-printf '%s\n' 'flask-redis/'
+printf '%s\n' 'flask-redis-netshield/'
 printf '%s\n' '├── app.py                       # Flask application'
 printf '%s\n' '├── Dockerfile                   # Flask image build'
 printf '%s\n' '├── requirements.txt             # Python dependencies'
@@ -367,7 +369,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE}  failed -- ignoring this"
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 EOF
 )"
 
@@ -797,7 +799,7 @@ printf '%s\n' '## Part 2 — Confidential Deployment (SCONE)'
 printf '%s\n' ''
 printf '%s\n' '### Step 10. Build the confidential (SCONE) images'
 printf '%s\n' ''
-printf '%s\n' 'When transforming the binaries in the container image for confidential computing, we sign the binaries with a key. `scone-td-build` assumes, by default, that this key is stored in file `identity.pem`. We can generate this file as follows:'
+printf '%s\n' 'When transforming the binaries in the container image for confidential computing, we sign the binaries with a key. By default, `scone-td-build` assumes that this key is stored in the file `identity.pem`. We can generate this file as follows:'
 printf '%s\n' ''
 printf '%s\n' '- we first check if the file exists, and'
 printf '%s\n' '- if it does not exist, we create it with `openssl`'
@@ -1171,7 +1173,7 @@ printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '## API Endpoints'
 printf '%s\n' ''
-printf '%s\n' 'All endpoints are served over HTTPS on port `4996` (mapped to `443` in Kubernetes).'
+printf '%s\n' 'All endpoints are exposed on port `4996` (mapped to `443` in Kubernetes).'
 printf '%s\n' ''
 printf '%s\n' '| Method | Path | Description |'
 printf '%s\n' '|--------|------|-------------|'
