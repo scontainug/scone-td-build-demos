@@ -61,7 +61,7 @@ Create SCONE config files from templates, then run `scone-td-build`:
 # Render the template with the selected values.
 tplenv --file "./manifest.template.yaml" --output "./manifest.yaml"
 # Render the template with the selected values.
-tplenv --file "./scone.template.yaml" --output "./scone.yaml"
+tplenv --file "./scone.template.yaml" --output "./scone.yaml" --indent
 # Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y ./scone.yaml
 ```
@@ -79,7 +79,7 @@ docker push $CLIENT_IMAGE-scone
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f "manifest.prod.sanitized.yaml"
+kubectl apply -n ${NAMESPACE} -f "manifest.prod.sanitized.yaml"
 ```
 
 Wait until all pods are running before continuing.
@@ -90,24 +90,24 @@ Wait for pods and port-forward the server service:
 
 ```bash
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=Ready pod -l app="server" --timeout=300s
+kubectl wait -n ${NAMESPACE} --for=condition=Ready pod -l app="server" --timeout=300s
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=Ready pod -l app="client" --timeout=300s
+kubectl wait -n ${NAMESPACE} --for=condition=Ready pod -l app="client" --timeout=300s
 # A ready pod does not always mean the port is immediately available.
 # Wait briefly for the service to become reachable.
 sleep 10
 
 # Start a local port-forward to the Kubernetes workload.
-kubectl port-forward svc/barad-dur 3000 & echo $! > /tmp/pf-3000.pid
+kubectl port-forward -n ${NAMESPACE} svc/barad-dur 3001:3000 & echo $! > /tmp/pf-3001.pid
 ```
 
 Send requests:
 
 ```bash
 # Send a test request to the demo service endpoint.
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3001/db-query
 # Send a test request to the demo service endpoint.
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3001/db-query
 ```
 
 Expected result: a random 7-character password, which confirms:
@@ -120,11 +120,11 @@ Expected result: a random 7-character password, which confirms:
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifest.prod.sanitized.yaml
+kubectl delete -n ${NAMESPACE} -f manifest.prod.sanitized.yaml
 # Stop the previous background process if it is still running.
-kill $(cat /tmp/pf-3000.pid) || true
-# Remove `/tmp/pf-3000.pid` if it exists.
-rm /tmp/pf-3000.pid
+kill $(cat /tmp/pf-3001.pid) || true
+# Remove `/tmp/pf-3001.pid` if it exists.
+rm /tmp/pf-3001.pid
 # Return to the previous working directory.
 cd -
 ```

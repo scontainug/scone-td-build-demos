@@ -305,7 +305,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get -n ${NAMESPACE} secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -325,7 +325,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" \
+  kubectl create -n ${NAMESPACE} secret docker-registry "${IMAGE_PULL_SECRET_NAME}" \
     --docker-server=$REGISTRY \
     --docker-username=$REGISTRY_USER \
     --docker-password=$REGISTRY_TOKEN
@@ -351,7 +351,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifests/manifest.yaml
+kubectl apply -n ${NAMESPACE} -f manifests/manifest.yaml
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -359,7 +359,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=condition=complete job/go-args-env-file --timeout=240s
+kubectl wait -n ${NAMESPACE} --for=condition=complete job/go-args-env-file --timeout=240s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -367,7 +367,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl logs job/go-args-env-file
+kubectl logs -n ${NAMESPACE} job/go-args-env-file
 EOF
 )"
 
@@ -384,7 +384,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifests/manifest.yaml
+kubectl delete -n ${NAMESPACE} -f manifests/manifest.yaml
 EOF
 )"
 
@@ -430,7 +430,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifests/manifest.prod.sanitized.yaml
+kubectl apply -n ${NAMESPACE} -f manifests/manifest.prod.sanitized.yaml
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -438,7 +438,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=condition=complete job/go-args-env-file --timeout=300s
+kubectl wait -n ${NAMESPACE} --for=condition=complete job/go-args-env-file --timeout=300s
 EOF
 )"
 
@@ -455,7 +455,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl logs job/go-args-env-file
+kubectl logs -n ${NAMESPACE} job/go-args-env-file
 EOF
 )"
 
@@ -472,7 +472,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifests/manifest.prod.sanitized.yaml
+kubectl delete -n ${NAMESPACE} -f manifests/manifest.prod.sanitized.yaml
 EOF
 )"
 

@@ -103,12 +103,12 @@ If the pull secret does not exist yet, create it using registry credentials.
 - `$REGISTRY_TOKEN` - Registry pull token (see <https://sconedocs.github.io/registry/>)
 
 ```bash
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get -n ${NAMESPACE} secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create -n ${NAMESPACE} secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 ```
 
@@ -149,6 +149,7 @@ scone-td-build register \
   --push \
   -s ./storage.json \
   --enforce /app/web-server \
+  --manifest-env SCONE_PRODUCTION=0 \
   --version ${SCONE_RUNTIME_VERSION}
 ```
 
@@ -158,9 +159,9 @@ Clean up previous runs first:
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete deployment web-server || echo "ok - no web-server deployment yet"
+kubectl delete -n ${NAMESPACE} deployment web-server || echo "ok - no web-server deployment yet"
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod -l app=web-server --timeout=240s || echo "ok - no web-server deployment yet"
+kubectl wait -n ${NAMESPACE} --for=delete pod -l app=web-server --timeout=240s || echo "ok - no web-server deployment yet"
 # Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-8000.pid) || true
 ```
@@ -169,11 +170,11 @@ Deploy and test:
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.yaml
+kubectl apply -n ${NAMESPACE} -f manifest.yaml
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=Ready pod -l app="web-server" --timeout=240s
+kubectl wait -n ${NAMESPACE} --for=condition=Ready pod -l app="web-server" --timeout=240s
 # Start a local port-forward to the Kubernetes workload.
-kubectl port-forward deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
+kubectl port-forward -n ${NAMESPACE} deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
 
 # Retry the wrapped command until it succeeds or reaches the retry limit.
 retry-spinner -- curl http://localhost:8000/env/MY_POD_IP
@@ -181,9 +182,9 @@ retry-spinner -- curl http://localhost:8000/env/MY_POD_IP
 ./test.sh
 
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifest.yaml
+kubectl delete -n ${NAMESPACE} -f manifest.yaml
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod -l app=web-server --timeout=240s
+kubectl wait -n ${NAMESPACE} --for=delete pod -l app=web-server --timeout=240s
 # Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-8000.pid) || true
 # Remove `/tmp/pf-8000.pid` if it exists.
@@ -203,6 +204,8 @@ scone-td-build apply \
   --spol \
   --manifest-env SCONE_SYSLIBS=1 \
   --manifest-env SCONE_VERSION=1 \
+  --manifest-env SCONE_PRODUCTION=0 \
+  --manifest-env SCONE_HEAP=2G \
   --session-env SCONE_VERSION=1 \
   --output-manifest-file manifest.sanitized.yaml \
   --version ${SCONE_RUNTIME_VERSION} -p
@@ -212,7 +215,7 @@ scone-td-build apply \
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.sanitized.yaml
+kubectl apply -n ${NAMESPACE} -f manifest.sanitized.yaml
 ```
 
 For the next step, you need a Kubernetes cluster with SGX resources and a running LAS.
@@ -221,12 +224,12 @@ For the next step, you need a Kubernetes cluster with SGX resources and a runnin
 
 ```bash
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=Ready pod -l app="web-server" --timeout=240s
+kubectl wait -n ${NAMESPACE} --for=condition=Ready pod -l app="web-server" --timeout=240s
 # A ready pod does not always mean the port is immediately available.
 # Wait briefly for the service to become reachable.
 sleep 20
 # Start a local port-forward to the Kubernetes workload.
-kubectl port-forward deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
+kubectl port-forward -n ${NAMESPACE} deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
 ```
 
 Send test requests:
@@ -244,7 +247,7 @@ retry-spinner -- curl http://localhost:8000/gen
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifest.sanitized.yaml
+kubectl delete -n ${NAMESPACE} -f manifest.sanitized.yaml
 # Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-8000.pid) || true
 # Remove `/tmp/pf-8000.pid` if it exists.

@@ -257,7 +257,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get -n ${NAMESPACE} secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -277,7 +277,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create -n ${NAMESPACE} secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -375,6 +375,7 @@ scone-td-build register \
   --push \
   -s ./storage.json \
   --enforce /app/web-server \
+  --manifest-env SCONE_PRODUCTION=0 \
   --version ${SCONE_RUNTIME_VERSION}
 EOF
 )"
@@ -392,7 +393,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete deployment web-server || echo "ok - no web-server deployment yet"
+kubectl delete -n ${NAMESPACE} deployment web-server || echo "ok - no web-server deployment yet"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -400,7 +401,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=delete pod -l app=web-server --timeout=240s || echo "ok - no web-server deployment yet"
+kubectl wait -n ${NAMESPACE} --for=delete pod -l app=web-server --timeout=240s || echo "ok - no web-server deployment yet"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -423,7 +424,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifest.yaml
+kubectl apply -n ${NAMESPACE} -f manifest.yaml
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -431,7 +432,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=condition=Ready pod -l app="web-server" --timeout=240s
+kubectl wait -n ${NAMESPACE} --for=condition=Ready pod -l app="web-server" --timeout=240s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -439,7 +440,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl port-forward deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
+kubectl port-forward -n ${NAMESPACE} deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -471,7 +472,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifest.yaml
+kubectl delete -n ${NAMESPACE} -f manifest.yaml
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -479,7 +480,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=delete pod -l app=web-server --timeout=240s
+kubectl wait -n ${NAMESPACE} --for=delete pod -l app=web-server --timeout=240s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -503,7 +504,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '## 7. Convert the Manifest'
 printf '%s\n' ''
-printf '%s\n' 'If you want to inspect registration details, see [register-image](../../../register-image.md).'
+printf '%s\n' 'If you want to inspect registration details, see [register-image](https://github.com/scontain/k8s-scone/blob/main/register-image.md).'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -519,6 +520,8 @@ scone-td-build apply \
   --spol \
   --manifest-env SCONE_SYSLIBS=1 \
   --manifest-env SCONE_VERSION=1 \
+  --manifest-env SCONE_PRODUCTION=0 \
+  --manifest-env SCONE_HEAP=2G \
   --session-env SCONE_VERSION=1 \
   --output-manifest-file manifest.sanitized.yaml \
   --version ${SCONE_RUNTIME_VERSION} -p
@@ -536,7 +539,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifest.sanitized.yaml
+kubectl apply -n ${NAMESPACE} -f manifest.sanitized.yaml
 EOF
 )"
 
@@ -553,7 +556,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=condition=Ready pod -l app="web-server" --timeout=240s
+kubectl wait -n ${NAMESPACE} --for=condition=Ready pod -l app="web-server" --timeout=240s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -573,7 +576,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl port-forward deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
+kubectl port-forward -n ${NAMESPACE} deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
 EOF
 )"
 
@@ -619,7 +622,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifest.sanitized.yaml
+kubectl delete -n ${NAMESPACE} -f manifest.sanitized.yaml
 EOF
 )"
 pe "$(cat <<'EOF'

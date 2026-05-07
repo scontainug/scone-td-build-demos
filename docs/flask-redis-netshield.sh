@@ -369,7 +369,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -n ${NAMESPACE} -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 EOF
 )"
 
@@ -388,7 +388,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl create secret generic redis-tls \
+kubectl create -n ${NAMESPACE} secret generic redis-tls \
   --namespace ${NAMESPACE} \
   --from-file=redis.crt=certs/redis.crt \
   --from-file=redis.key=certs/redis.key \
@@ -405,7 +405,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl create secret generic flask-tls \
+kubectl create -n ${NAMESPACE} secret generic flask-tls \
   --namespace ${NAMESPACE} \
   --from-file=flask.crt=certs/flask.crt \
   --from-file=flask.key=certs/flask.key \
@@ -427,7 +427,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f k8s/secret-redis-tls.yaml
+kubectl apply -n ${NAMESPACE} -f k8s/secret-redis-tls.yaml
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -435,7 +435,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f k8s/secret-flask-tls.yaml
+kubectl apply -n ${NAMESPACE} -f k8s/secret-flask-tls.yaml
 EOF
 )"
 
@@ -460,7 +460,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get -n ${NAMESPACE} secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -496,7 +496,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create -n ${NAMESPACE} secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -532,7 +532,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f k8s/manifest.yaml --namespace ${NAMESPACE}
+kubectl apply -n ${NAMESPACE} -f k8s/manifest.yaml --namespace ${NAMESPACE}
 EOF
 )"
 
@@ -779,7 +779,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
+kubectl delete -n ${NAMESPACE} -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -893,7 +893,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}
+kubectl apply -n ${NAMESPACE} -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}
 EOF
 )"
 
@@ -1163,7 +1163,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
+kubectl delete -n ${NAMESPACE} -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
 EOF
 )"
 

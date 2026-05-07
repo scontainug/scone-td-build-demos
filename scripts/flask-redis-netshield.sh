@@ -257,11 +257,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Create the Kubernetes namespace if it does not already exist.'
-printf '%s\n' 'kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"'
+printf '%s\n' 'kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -n ${NAMESPACE} -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"'
 printf "${RESET}"
 
 # Create the Kubernetes namespace if it does not already exist.
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -n ${NAMESPACE} -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -275,7 +275,7 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Generate the Kubernetes secret manifest.'
-printf '%s\n' 'kubectl create secret generic redis-tls \'
+printf '%s\n' 'kubectl create -n ${NAMESPACE} secret generic redis-tls \'
 printf '%s\n' '  --namespace ${NAMESPACE} \'
 printf '%s\n' '  --from-file=redis.crt=certs/redis.crt \'
 printf '%s\n' '  --from-file=redis.key=certs/redis.key \'
@@ -283,7 +283,7 @@ printf '%s\n' '  --from-file=redis-ca.crt=certs/redis-ca.crt \'
 printf '%s\n' '  --dry-run=client -o yaml > k8s/secret-redis-tls.yaml'
 printf '%s\n' ''
 printf '%s\n' '# Generate the Kubernetes secret manifest.'
-printf '%s\n' 'kubectl create secret generic flask-tls \'
+printf '%s\n' 'kubectl create -n ${NAMESPACE} secret generic flask-tls \'
 printf '%s\n' '  --namespace ${NAMESPACE} \'
 printf '%s\n' '  --from-file=flask.crt=certs/flask.crt \'
 printf '%s\n' '  --from-file=flask.key=certs/flask.key \'
@@ -294,7 +294,7 @@ printf '%s\n' '  --dry-run=client -o yaml > k8s/secret-flask-tls.yaml'
 printf "${RESET}"
 
 # Generate the Kubernetes secret manifest.
-kubectl create secret generic redis-tls \
+kubectl create -n ${NAMESPACE} secret generic redis-tls \
   --namespace ${NAMESPACE} \
   --from-file=redis.crt=certs/redis.crt \
   --from-file=redis.key=certs/redis.key \
@@ -302,7 +302,7 @@ kubectl create secret generic redis-tls \
   --dry-run=client -o yaml > k8s/secret-redis-tls.yaml
 
 # Generate the Kubernetes secret manifest.
-kubectl create secret generic flask-tls \
+kubectl create -n ${NAMESPACE} secret generic flask-tls \
   --namespace ${NAMESPACE} \
   --from-file=flask.crt=certs/flask.crt \
   --from-file=flask.key=certs/flask.key \
@@ -319,15 +319,15 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Apply the Kubernetes manifest.'
-printf '%s\n' 'kubectl apply -f k8s/secret-redis-tls.yaml'
+printf '%s\n' 'kubectl apply -n ${NAMESPACE} -f k8s/secret-redis-tls.yaml'
 printf '%s\n' '# Apply the Kubernetes manifest.'
-printf '%s\n' 'kubectl apply -f k8s/secret-flask-tls.yaml'
+printf '%s\n' 'kubectl apply -n ${NAMESPACE} -f k8s/secret-flask-tls.yaml'
 printf "${RESET}"
 
 # Apply the Kubernetes manifest.
-kubectl apply -f k8s/secret-redis-tls.yaml
+kubectl apply -n ${NAMESPACE} -f k8s/secret-redis-tls.yaml
 # Apply the Kubernetes manifest.
-kubectl apply -f k8s/secret-flask-tls.yaml
+kubectl apply -n ${NAMESPACE} -f k8s/secret-flask-tls.yaml
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -347,7 +347,7 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Check whether the pull secret already exists.'
-printf '%s\n' 'if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then'
+printf '%s\n' 'if kubectl get -n ${NAMESPACE} secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then'
 printf '%s\n' '  # Print a status message.'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"'
 printf '%s\n' 'else'
@@ -356,12 +356,12 @@ printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creatin
 printf '%s\n' '  # Load environment variables from the tplenv definition file.'
 printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} )'
 printf '%s\n' '  # Create the Docker registry pull secret.'
-printf '%s\n' '  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
+printf '%s\n' '  kubectl create -n ${NAMESPACE} secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
 # Check whether the pull secret already exists.
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get -n ${NAMESPACE} secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
@@ -370,7 +370,7 @@ else
   # Load environment variables from the tplenv definition file.
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} )
   # Create the Docker registry pull secret.
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create -n ${NAMESPACE} secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 
 printf "${VIOLET}"
@@ -397,11 +397,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Apply the Kubernetes manifest.'
-printf '%s\n' 'kubectl apply -f k8s/manifest.yaml --namespace ${NAMESPACE}'
+printf '%s\n' 'kubectl apply -n ${NAMESPACE} -f k8s/manifest.yaml --namespace ${NAMESPACE}'
 printf "${RESET}"
 
 # Apply the Kubernetes manifest.
-kubectl apply -f k8s/manifest.yaml --namespace ${NAMESPACE}
+kubectl apply -n ${NAMESPACE} -f k8s/manifest.yaml --namespace ${NAMESPACE}
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -564,13 +564,13 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Delete the Kubernetes resource if it exists.'
-printf '%s\n' 'kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found'
+printf '%s\n' 'kubectl delete -n ${NAMESPACE} -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found'
 printf '%s\n' '# Delete the Kubernetes resource if it exists.'
 printf '%s\n' 'kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found'
 printf "${RESET}"
 
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
+kubectl delete -n ${NAMESPACE} -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
 # Delete the Kubernetes resource if it exists.
 kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found
 
@@ -647,11 +647,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Apply the Kubernetes manifest.'
-printf '%s\n' 'kubectl apply -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}'
+printf '%s\n' 'kubectl apply -n ${NAMESPACE} -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}'
 printf "${RESET}"
 
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}
+kubectl apply -n ${NAMESPACE} -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -818,7 +818,7 @@ printf '%s\n' 'rm /tmp/pf-14996.pid'
 printf '%s\n' ''
 printf '%s\n' '# Delete confidential manifest resources'
 printf '%s\n' '# Delete the Kubernetes resource if it exists.'
-printf '%s\n' 'kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found'
+printf '%s\n' 'kubectl delete -n ${NAMESPACE} -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found'
 printf "${RESET}"
 
 # Stop the port-forward
@@ -829,7 +829,7 @@ rm /tmp/pf-14996.pid
 
 # Delete confidential manifest resources
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
+kubectl delete -n ${NAMESPACE} -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
 
 printf "${VIOLET}"
 printf '%s\n' ''

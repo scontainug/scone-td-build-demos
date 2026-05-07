@@ -118,7 +118,7 @@ We try to ensure the namespace exists. This may fail when running in a container
 
 ```bash
 # Create the Kubernetes namespace if it does not already exist.
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -n ${NAMESPACE} -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 ```
 
 ---
@@ -129,7 +129,7 @@ Generate the secret YAML files locally so you can inspect them before applying:
 
 ```bash
 # Generate the Kubernetes secret manifest.
-kubectl create secret generic redis-tls \
+kubectl create -n ${NAMESPACE} secret generic redis-tls \
   --namespace ${NAMESPACE} \
   --from-file=redis.crt=certs/redis.crt \
   --from-file=redis.key=certs/redis.key \
@@ -137,7 +137,7 @@ kubectl create secret generic redis-tls \
   --dry-run=client -o yaml > k8s/secret-redis-tls.yaml
 
 # Generate the Kubernetes secret manifest.
-kubectl create secret generic flask-tls \
+kubectl create -n ${NAMESPACE} secret generic flask-tls \
   --namespace ${NAMESPACE} \
   --from-file=flask.crt=certs/flask.crt \
   --from-file=flask.key=certs/flask.key \
@@ -151,9 +151,9 @@ Review the files in `k8s/`, then apply them:
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f k8s/secret-redis-tls.yaml
+kubectl apply -n ${NAMESPACE} -f k8s/secret-redis-tls.yaml
 # Apply the Kubernetes manifest.
-kubectl apply -f k8s/secret-flask-tls.yaml
+kubectl apply -n ${NAMESPACE} -f k8s/secret-flask-tls.yaml
 ```
 
 ---
@@ -170,7 +170,7 @@ We create the pull secret in the namespace if it does not yet exist:
 
 ```bash
 # Check whether the pull secret already exists.
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get -n ${NAMESPACE} secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
@@ -179,7 +179,7 @@ else
   # Load environment variables from the tplenv definition file.
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} )
   # Create the Docker registry pull secret.
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create -n ${NAMESPACE} secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 ```
 
@@ -196,7 +196,7 @@ Review `k8s/manifest.yaml`, then apply it:
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f k8s/manifest.yaml --namespace ${NAMESPACE}
+kubectl apply -n ${NAMESPACE} -f k8s/manifest.yaml --namespace ${NAMESPACE}
 ```
 
 ---
@@ -285,7 +285,7 @@ Remove the native workloads and secrets before switching to the confidential ver
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
+kubectl delete -n ${NAMESPACE} -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
 # Delete the Kubernetes resource if it exists.
 kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found
 ```
@@ -333,7 +333,7 @@ Apply the production sanitized manifest that references the SCONE confidential i
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}
+kubectl apply -n ${NAMESPACE} -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}
 ```
 
 ---
@@ -427,7 +427,7 @@ rm /tmp/pf-14996.pid
 
 # Delete confidential manifest resources
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
+kubectl delete -n ${NAMESPACE} -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
 ```
 
 ---

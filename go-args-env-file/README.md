@@ -138,12 +138,12 @@ If you need a pull secret for native and confidential images, create it when mis
 
 ```bash
 # Check whether the pull secret already exists.
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get -n ${NAMESPACE} secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
   # Create the Docker registry pull secret.
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" \
+  kubectl create -n ${NAMESPACE} secret docker-registry "${IMAGE_PULL_SECRET_NAME}" \
     --docker-server=$REGISTRY \
     --docker-username=$REGISTRY_USER \
     --docker-password=$REGISTRY_TOKEN
@@ -158,11 +158,11 @@ Apply the manifest, wait for the job to complete, and inspect its logs to confir
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifests/manifest.yaml
+kubectl apply -n ${NAMESPACE} -f manifests/manifest.yaml
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=complete job/go-args-env-file --timeout=240s
+kubectl wait -n ${NAMESPACE} --for=condition=complete job/go-args-env-file --timeout=240s
 # Show logs from the Kubernetes workload.
-kubectl logs job/go-args-env-file
+kubectl logs -n ${NAMESPACE} job/go-args-env-file
 ```
 
 Your container should print the command-line arguments, all environment variables, the contents of `/config/configs.yaml`, and `/config/secrets`.
@@ -171,7 +171,7 @@ Clean up the native deployment before moving on:
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifests/manifest.yaml
+kubectl delete -n ${NAMESPACE} -f manifests/manifest.yaml
 ```
 
 The manifest mounts:
@@ -201,9 +201,9 @@ This command:
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifests/manifest.prod.sanitized.yaml
+kubectl apply -n ${NAMESPACE} -f manifests/manifest.prod.sanitized.yaml
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=complete job/go-args-env-file --timeout=300s
+kubectl wait -n ${NAMESPACE} --for=condition=complete job/go-args-env-file --timeout=300s
 ```
 
 ---
@@ -212,7 +212,7 @@ kubectl wait --for=condition=complete job/go-args-env-file --timeout=300s
 
 ```bash
 # Show logs from the Kubernetes workload.
-kubectl logs job/go-args-env-file
+kubectl logs -n ${NAMESPACE} job/go-args-env-file
 ```
 
 ---
@@ -221,7 +221,7 @@ kubectl logs job/go-args-env-file
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifests/manifest.prod.sanitized.yaml
+kubectl delete -n ${NAMESPACE} -f manifests/manifest.prod.sanitized.yaml
 ```
 
 ---

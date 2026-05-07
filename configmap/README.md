@@ -87,7 +87,7 @@ If you need a pull secret for native and confidential images, create it when mis
 
 ```bash
 # Check whether the pull secret already exists.
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get -n ${NAMESPACE} secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
@@ -96,7 +96,7 @@ else
   # Load environment variables from the tplenv definition file.
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
   # Create the Docker registry pull secret.
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create -n ${NAMESPACE} secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 ```
 
@@ -104,15 +104,17 @@ fi
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifests/manifest.yaml
+kubectl apply -n ${NAMESPACE} -f manifests/manifest.yaml
+# Wait for the job to complete before reading logs.
+kubectl wait -n ${NAMESPACE} --for=condition=complete job/my-rust-app --timeout=120s
 # Retry the wrapped command until it succeeds or reaches the retry limit.
-retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-1
+retry-spinner --retries 5 --wait 2 -- kubectl logs -n ${NAMESPACE} job/my-rust-app -c reader-1
 # Retry the wrapped command until it succeeds or reaches the retry limit.
-retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-2
+retry-spinner --retries 5 --wait 2 -- kubectl logs -n ${NAMESPACE} job/my-rust-app -c reader-2
 
 # Clean up native app
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifests/manifest.yaml
+kubectl delete -n ${NAMESPACE} -f manifests/manifest.yaml
 ```
 
 Your containers should print content from the mounted ConfigMap files.
@@ -134,23 +136,25 @@ This command:
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifests/manifest.prod.sanitized.yaml
+kubectl apply -n ${NAMESPACE} -f manifests/manifest.prod.sanitized.yaml
 ```
 
 ## 10. View Logs
 
 ```bash
+# Wait for the job to complete before reading logs.
+kubectl wait -n ${NAMESPACE} --for=condition=complete job/my-rust-app --timeout=300s
 # Retry the wrapped command until it succeeds or reaches the retry limit.
-retry-spinner -- kubectl logs job/my-rust-app -c reader-1 --follow
+retry-spinner -- kubectl logs -n ${NAMESPACE} job/my-rust-app -c reader-1 --follow
 # Retry the wrapped command until it succeeds or reaches the retry limit.
-retry-spinner -- kubectl logs job/my-rust-app -c reader-2 --follow
+retry-spinner -- kubectl logs -n ${NAMESPACE} job/my-rust-app -c reader-2 --follow
 ```
 
 ## 11. Clean Up
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifests/manifest.prod.sanitized.yaml
+kubectl delete -n ${NAMESPACE} -f manifests/manifest.prod.sanitized.yaml
 # Return to the previous working directory.
 popd
 ```

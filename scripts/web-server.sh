@@ -154,7 +154,6 @@ printf '%s\n' '- `$CAS_NAMESPACE` - CAS namespace (for example, `default`)'
 printf '%s\n' '- `$CAS_NAME` - CAS name (for example, `cas`)'
 printf '%s\n' '- `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX'
 printf '%s\n' '- `$SCONE_ENCLAVE` - In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods'
-printf '%s\n' '- `$NAMESPACE` - Kubernetes namespace where the demo runs (default: `default`)'
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -165,14 +164,6 @@ printf "${RESET}"
 
 # Load environment variables from the tplenv definition file.
 eval $(tplenv --file environment-variables.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)
-
-printf "${ORANGE}"
-printf '%s\n' '# Create the Kubernetes namespace if it does not already exist.'
-printf '%s\n' 'kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"'
-printf "${RESET}"
-
-# Create the Kubernetes namespace if it does not already exist.
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -217,21 +208,21 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' 'if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then'
+printf '%s\n' 'if kubectl get -n ${NAMESPACE} secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"'
 printf '%s\n' 'else'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."'
 printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-})'
-printf '%s\n' '  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
+printf '%s\n' '  kubectl create -n ${NAMESPACE} secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
 printf '%s\n' 'fi'
 printf "${RESET}"
 
-if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get -n ${NAMESPACE} secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-})
-  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create -n ${NAMESPACE} secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 
 printf "${VIOLET}"
@@ -299,6 +290,7 @@ printf '%s\n' '  --destination-image ${DESTINATION_IMAGE_NAME} \'
 printf '%s\n' '  --push \'
 printf '%s\n' '  -s ./storage.json \'
 printf '%s\n' '  --enforce /app/web-server \'
+printf '%s\n' '  --manifest-env SCONE_PRODUCTION=0 \'
 printf '%s\n' '  --version ${SCONE_RUNTIME_VERSION}'
 printf "${RESET}"
 
@@ -310,6 +302,7 @@ scone-td-build register \
   --push \
   -s ./storage.json \
   --enforce /app/web-server \
+  --manifest-env SCONE_PRODUCTION=0 \
   --version ${SCONE_RUNTIME_VERSION}
 
 printf "${VIOLET}"
@@ -322,17 +315,17 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Delete the Kubernetes resource if it exists.'
-printf '%s\n' 'kubectl delete deployment web-server -n ${NAMESPACE} || echo "ok - no web-server deployment yet"'
+printf '%s\n' 'kubectl delete -n ${NAMESPACE} deployment web-server || echo "ok - no web-server deployment yet"'
 printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
-printf '%s\n' 'kubectl wait --for=delete pod -l app=web-server -n ${NAMESPACE} --timeout=240s || echo "ok - no web-server deployment yet"'
+printf '%s\n' 'kubectl wait -n ${NAMESPACE} --for=delete pod -l app=web-server --timeout=240s || echo "ok - no web-server deployment yet"'
 printf '%s\n' '# Stop the previous background process if it is still running.'
 printf '%s\n' 'kill $(cat /tmp/pf-8000.pid) || true'
 printf "${RESET}"
 
 # Delete the Kubernetes resource if it exists.
-kubectl delete deployment web-server -n ${NAMESPACE} || echo "ok - no web-server deployment yet"
+kubectl delete -n ${NAMESPACE} deployment web-server || echo "ok - no web-server deployment yet"
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod -l app=web-server -n ${NAMESPACE} --timeout=240s || echo "ok - no web-server deployment yet"
+kubectl wait -n ${NAMESPACE} --for=delete pod -l app=web-server --timeout=240s || echo "ok - no web-server deployment yet"
 # Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-8000.pid) || true
 
@@ -344,11 +337,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Apply the Kubernetes manifest.'
-printf '%s\n' 'kubectl apply -f manifest.yaml -n ${NAMESPACE}'
+printf '%s\n' 'kubectl apply -n ${NAMESPACE} -f manifest.yaml'
 printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
-printf '%s\n' 'kubectl wait --for=condition=Ready pod -l app="web-server" -n ${NAMESPACE} --timeout=240s'
+printf '%s\n' 'kubectl wait -n ${NAMESPACE} --for=condition=Ready pod -l app="web-server" --timeout=240s'
 printf '%s\n' '# Start a local port-forward to the Kubernetes workload.'
-printf '%s\n' 'kubectl port-forward deployment/web-server 8000:8000 -n ${NAMESPACE} & echo $! > /tmp/pf-8000.pid'
+printf '%s\n' 'kubectl port-forward -n ${NAMESPACE} deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid'
 printf '%s\n' ''
 printf '%s\n' '# Retry the wrapped command until it succeeds or reaches the retry limit.'
 printf '%s\n' 'retry-spinner -- curl http://localhost:8000/env/MY_POD_IP'
@@ -356,9 +349,9 @@ printf '%s\n' '# Run the demo test script.'
 printf '%s\n' './test.sh'
 printf '%s\n' ''
 printf '%s\n' '# Delete the Kubernetes resource if it exists.'
-printf '%s\n' 'kubectl delete -f manifest.yaml -n ${NAMESPACE}'
+printf '%s\n' 'kubectl delete -n ${NAMESPACE} -f manifest.yaml'
 printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
-printf '%s\n' 'kubectl wait --for=delete pod -l app=web-server -n ${NAMESPACE} --timeout=240s'
+printf '%s\n' 'kubectl wait -n ${NAMESPACE} --for=delete pod -l app=web-server --timeout=240s'
 printf '%s\n' '# Stop the previous background process if it is still running.'
 printf '%s\n' 'kill $(cat /tmp/pf-8000.pid) || true'
 printf '%s\n' '# Remove `/tmp/pf-8000.pid` if it exists.'
@@ -366,11 +359,11 @@ printf '%s\n' 'rm /tmp/pf-8000.pid'
 printf "${RESET}"
 
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.yaml -n ${NAMESPACE}
+kubectl apply -n ${NAMESPACE} -f manifest.yaml
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=Ready pod -l app="web-server" -n ${NAMESPACE} --timeout=240s
+kubectl wait -n ${NAMESPACE} --for=condition=Ready pod -l app="web-server" --timeout=240s
 # Start a local port-forward to the Kubernetes workload.
-kubectl port-forward deployment/web-server 8000:8000 -n ${NAMESPACE} & echo $! > /tmp/pf-8000.pid
+kubectl port-forward -n ${NAMESPACE} deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
 
 # Retry the wrapped command until it succeeds or reaches the retry limit.
 retry-spinner -- curl http://localhost:8000/env/MY_POD_IP
@@ -378,9 +371,9 @@ retry-spinner -- curl http://localhost:8000/env/MY_POD_IP
 ./test.sh
 
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifest.yaml -n ${NAMESPACE}
+kubectl delete -n ${NAMESPACE} -f manifest.yaml
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod -l app=web-server -n ${NAMESPACE} --timeout=240s
+kubectl wait -n ${NAMESPACE} --for=delete pod -l app=web-server --timeout=240s
 # Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-8000.pid) || true
 # Remove `/tmp/pf-8000.pid` if it exists.
@@ -390,7 +383,7 @@ printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' '## 7. Convert the Manifest'
 printf '%s\n' ''
-printf '%s\n' 'If you want to inspect registration details, see [register-image](../../../register-image.md).'
+printf '%s\n' 'If you want to inspect registration details, see [register-image](https://github.com/scontain/k8s-scone/blob/main/register-image.md).'
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -403,6 +396,8 @@ printf '%s\n' '  -s ./storage.json \'
 printf '%s\n' '  --spol \'
 printf '%s\n' '  --manifest-env SCONE_SYSLIBS=1 \'
 printf '%s\n' '  --manifest-env SCONE_VERSION=1 \'
+printf '%s\n' '  --manifest-env SCONE_PRODUCTION=0 \'
+printf '%s\n' '  --manifest-env SCONE_HEAP=2G \'
 printf '%s\n' '  --session-env SCONE_VERSION=1 \'
 printf '%s\n' '  --output-manifest-file manifest.sanitized.yaml \'
 printf '%s\n' '  --version ${SCONE_RUNTIME_VERSION} -p'
@@ -416,6 +411,8 @@ scone-td-build apply \
   --spol \
   --manifest-env SCONE_SYSLIBS=1 \
   --manifest-env SCONE_VERSION=1 \
+  --manifest-env SCONE_PRODUCTION=0 \
+  --manifest-env SCONE_HEAP=2G \
   --session-env SCONE_VERSION=1 \
   --output-manifest-file manifest.sanitized.yaml \
   --version ${SCONE_RUNTIME_VERSION} -p
@@ -428,11 +425,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Apply the Kubernetes manifest.'
-printf '%s\n' 'kubectl apply -f manifest.sanitized.yaml -n ${NAMESPACE}'
+printf '%s\n' 'kubectl apply -n ${NAMESPACE} -f manifest.sanitized.yaml'
 printf "${RESET}"
 
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.sanitized.yaml -n ${NAMESPACE}
+kubectl apply -n ${NAMESPACE} -f manifest.sanitized.yaml
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -444,21 +441,21 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
-printf '%s\n' 'kubectl wait --for=condition=Ready pod -l app="web-server" -n ${NAMESPACE} --timeout=240s'
+printf '%s\n' 'kubectl wait -n ${NAMESPACE} --for=condition=Ready pod -l app="web-server" --timeout=240s'
 printf '%s\n' '# A ready pod does not always mean the port is immediately available.'
 printf '%s\n' '# Wait briefly for the service to become reachable.'
 printf '%s\n' 'sleep 20'
 printf '%s\n' '# Start a local port-forward to the Kubernetes workload.'
-printf '%s\n' 'kubectl port-forward deployment/web-server 8000:8000 -n ${NAMESPACE} & echo $! > /tmp/pf-8000.pid'
+printf '%s\n' 'kubectl port-forward -n ${NAMESPACE} deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid'
 printf "${RESET}"
 
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=Ready pod -l app="web-server" -n ${NAMESPACE} --timeout=240s
+kubectl wait -n ${NAMESPACE} --for=condition=Ready pod -l app="web-server" --timeout=240s
 # A ready pod does not always mean the port is immediately available.
 # Wait briefly for the service to become reachable.
 sleep 20
 # Start a local port-forward to the Kubernetes workload.
-kubectl port-forward deployment/web-server 8000:8000 -n ${NAMESPACE} & echo $! > /tmp/pf-8000.pid
+kubectl port-forward -n ${NAMESPACE} deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -490,7 +487,7 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Delete the Kubernetes resource if it exists.'
-printf '%s\n' 'kubectl delete -f manifest.sanitized.yaml -n ${NAMESPACE}'
+printf '%s\n' 'kubectl delete -n ${NAMESPACE} -f manifest.sanitized.yaml'
 printf '%s\n' '# Stop the previous background process if it is still running.'
 printf '%s\n' 'kill $(cat /tmp/pf-8000.pid) || true'
 printf '%s\n' '# Remove `/tmp/pf-8000.pid` if it exists.'
@@ -500,7 +497,7 @@ printf '%s\n' 'popd'
 printf "${RESET}"
 
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifest.sanitized.yaml -n ${NAMESPACE}
+kubectl delete -n ${NAMESPACE} -f manifest.sanitized.yaml
 # Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-8000.pid) || true
 # Remove `/tmp/pf-8000.pid` if it exists.

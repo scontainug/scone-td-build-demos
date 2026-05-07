@@ -276,7 +276,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get -n ${NAMESPACE} secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -312,7 +312,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create -n ${NAMESPACE} secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -331,7 +331,15 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifests/manifest.yaml
+kubectl apply -n ${NAMESPACE} -f manifests/manifest.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
+# Wait for the job to complete before reading logs.
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl wait -n ${NAMESPACE} --for=condition=complete job/my-rust-app --timeout=120s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -339,7 +347,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-1
+retry-spinner --retries 5 --wait 2 -- kubectl logs -n ${NAMESPACE} job/my-rust-app -c reader-1
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -347,7 +355,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-2
+retry-spinner --retries 5 --wait 2 -- kubectl logs -n ${NAMESPACE} job/my-rust-app -c reader-2
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -363,7 +371,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifests/manifest.yaml
+kubectl delete -n ${NAMESPACE} -f manifests/manifest.yaml
 EOF
 )"
 
@@ -401,7 +409,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifests/manifest.prod.sanitized.yaml
+kubectl apply -n ${NAMESPACE} -f manifests/manifest.prod.sanitized.yaml
 EOF
 )"
 
@@ -412,11 +420,19 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
+# Wait for the job to complete before reading logs.
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl wait -n ${NAMESPACE} --for=condition=complete job/my-rust-app --timeout=300s
+EOF
+)"
+pe "$(cat <<'EOF'
 # Retry the wrapped command until it succeeds or reaches the retry limit.
 EOF
 )"
 pe "$(cat <<'EOF'
-retry-spinner -- kubectl logs job/my-rust-app -c reader-1 --follow
+retry-spinner -- kubectl logs -n ${NAMESPACE} job/my-rust-app -c reader-1 --follow
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -424,7 +440,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-retry-spinner -- kubectl logs job/my-rust-app -c reader-2 --follow
+retry-spinner -- kubectl logs -n ${NAMESPACE} job/my-rust-app -c reader-2 --follow
 EOF
 )"
 
@@ -439,7 +455,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifests/manifest.prod.sanitized.yaml
+kubectl delete -n ${NAMESPACE} -f manifests/manifest.prod.sanitized.yaml
 EOF
 )"
 pe "$(cat <<'EOF'

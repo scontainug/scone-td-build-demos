@@ -130,7 +130,6 @@ scripts=(
   "flask-redis.sh"
   "flask-redis-netshield.sh"
   "go-args-env-file.sh"
-  "java-args-env-file.sh"
 )
 
 for ((i = 0; i < ${#scripts[@]}; i++)); do
