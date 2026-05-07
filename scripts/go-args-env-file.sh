@@ -138,7 +138,6 @@ printf '%s\n' '- `$CAS_NAMESPACE` — CAS namespace (for example, `default`)'
 printf '%s\n' '- `$CAS_NAME` — CAS name (for example, `cas`)'
 printf '%s\n' '- `$CVM_MODE` — Set to `--cvm` for CVM mode, otherwise leave empty for SGX'
 printf '%s\n' '- `$SCONE_ENCLAVE` — In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods'
-printf '%s\n' '- `$NAMESPACE` — Kubernetes namespace where the demo runs (default: `default`)'
 printf '%s\n' ''
 printf '%s\n' 'Set `SIGNER` for policy signing:'
 printf '%s\n' ''
@@ -165,14 +164,6 @@ printf "${RESET}"
 
 # Load environment variables from the tplenv definition file.
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)
-
-printf "${ORANGE}"
-printf '%s\n' '# Create the Kubernetes namespace if it does not already exist.'
-printf '%s\n' 'kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"'
-printf "${RESET}"
-
-# Create the Kubernetes namespace if it does not already exist.
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -257,12 +248,12 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Check whether the pull secret already exists.'
-printf '%s\n' 'if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then'
+printf '%s\n' 'if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then'
 printf '%s\n' '  # Print a status message.'
 printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"'
 printf '%s\n' 'else'
 printf '%s\n' '  # Create the Docker registry pull secret.'
-printf '%s\n' '  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" \'
+printf '%s\n' '  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" \'
 printf '%s\n' '    --docker-server=$REGISTRY \'
 printf '%s\n' '    --docker-username=$REGISTRY_USER \'
 printf '%s\n' '    --docker-password=$REGISTRY_TOKEN'
@@ -270,12 +261,12 @@ printf '%s\n' 'fi'
 printf "${RESET}"
 
 # Check whether the pull secret already exists.
-if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
   # Create the Docker registry pull secret.
-  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" \
+  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" \
     --docker-server=$REGISTRY \
     --docker-username=$REGISTRY_USER \
     --docker-password=$REGISTRY_TOKEN
@@ -293,19 +284,19 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Apply the Kubernetes manifest.'
-printf '%s\n' 'kubectl apply -f manifests/manifest.yaml -n ${NAMESPACE}'
+printf '%s\n' 'kubectl apply -f manifests/manifest.yaml'
 printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
-printf '%s\n' 'kubectl wait --for=condition=complete job/go-args-env-file -n ${NAMESPACE} --timeout=240s'
+printf '%s\n' 'kubectl wait --for=condition=complete job/go-args-env-file --timeout=240s'
 printf '%s\n' '# Show logs from the Kubernetes workload.'
-printf '%s\n' 'kubectl logs job/go-args-env-file -n ${NAMESPACE}'
+printf '%s\n' 'kubectl logs job/go-args-env-file'
 printf "${RESET}"
 
 # Apply the Kubernetes manifest.
-kubectl apply -f manifests/manifest.yaml -n ${NAMESPACE}
+kubectl apply -f manifests/manifest.yaml
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=complete job/go-args-env-file -n ${NAMESPACE} --timeout=240s
+kubectl wait --for=condition=complete job/go-args-env-file --timeout=240s
 # Show logs from the Kubernetes workload.
-kubectl logs job/go-args-env-file -n ${NAMESPACE}
+kubectl logs job/go-args-env-file
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -317,11 +308,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Delete the Kubernetes resource if it exists.'
-printf '%s\n' 'kubectl delete -f manifests/manifest.yaml -n ${NAMESPACE}'
+printf '%s\n' 'kubectl delete -f manifests/manifest.yaml'
 printf "${RESET}"
 
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifests/manifest.yaml -n ${NAMESPACE}
+kubectl delete -f manifests/manifest.yaml
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -361,15 +352,15 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Apply the Kubernetes manifest.'
-printf '%s\n' 'kubectl apply -f manifests/manifest.prod.sanitized.yaml -n ${NAMESPACE}'
+printf '%s\n' 'kubectl apply -f manifests/manifest.prod.sanitized.yaml'
 printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
-printf '%s\n' 'kubectl wait --for=condition=complete job/go-args-env-file -n ${NAMESPACE} --timeout=300s'
+printf '%s\n' 'kubectl wait --for=condition=complete job/go-args-env-file --timeout=300s'
 printf "${RESET}"
 
 # Apply the Kubernetes manifest.
-kubectl apply -f manifests/manifest.prod.sanitized.yaml -n ${NAMESPACE}
+kubectl apply -f manifests/manifest.prod.sanitized.yaml
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=complete job/go-args-env-file -n ${NAMESPACE} --timeout=300s
+kubectl wait --for=condition=complete job/go-args-env-file --timeout=300s
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -381,11 +372,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Show logs from the Kubernetes workload.'
-printf '%s\n' 'kubectl logs job/go-args-env-file -n ${NAMESPACE}'
+printf '%s\n' 'kubectl logs job/go-args-env-file'
 printf "${RESET}"
 
 # Show logs from the Kubernetes workload.
-kubectl logs job/go-args-env-file -n ${NAMESPACE}
+kubectl logs job/go-args-env-file
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -397,11 +388,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Delete the Kubernetes resource if it exists.'
-printf '%s\n' 'kubectl delete -f manifests/manifest.prod.sanitized.yaml -n ${NAMESPACE}'
+printf '%s\n' 'kubectl delete -f manifests/manifest.prod.sanitized.yaml'
 printf "${RESET}"
 
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifests/manifest.prod.sanitized.yaml -n ${NAMESPACE}
+kubectl delete -f manifests/manifest.prod.sanitized.yaml
 
 printf "${VIOLET}"
 printf '%s\n' ''
