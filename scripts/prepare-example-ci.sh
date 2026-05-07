@@ -214,6 +214,12 @@ for values_file in "${all_values_files[@]}"; do
   if [[ -n "$namespace" ]]; then
     upsert_scalar "$values_file" "NAMESPACE" "$namespace"
   fi
+  if [[ -n "${CAS_NAME:-}" ]]; then
+    upsert_scalar "$values_file" "CAS_NAME" "$CAS_NAME"
+  fi
+  if [[ -n "${CAS_NAMESPACE:-}" ]]; then
+    upsert_scalar "$values_file" "CAS_NAMESPACE" "$CAS_NAMESPACE"
+  fi
 done
 
 declare -A seen_namespaces=()

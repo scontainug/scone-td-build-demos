@@ -103,7 +103,7 @@ If you need a pull secret for native and confidential images, create it when mis
 - `$REGISTRY_TOKEN` — Registry pull token (see <https://sconedocs.github.io/registry/>)
 
 ```bash
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE} failed -- ignoring this"
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -n ${NAMESPACE} -f - 2> /dev/null || echo "Patching of namespace ${NAMESPACE} failed -- ignoring this"
 
 if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
@@ -122,7 +122,7 @@ fi
 Apply the manifest and follow the pod logs to confirm the app prints arguments, environment variables, and the contents of the ConfigMap and Secret files:
 
 ```bash
-kubectl apply -f manifests/manifest.yaml
+kubectl apply -n ${NAMESPACE} -f manifests/manifest.yaml
 retry-spinner --retries 10 --wait 2 -- kubectl logs deployment/java-args-env-file -n "${NAMESPACE}" --follow
 ```
 
@@ -131,7 +131,7 @@ Your container should print the command-line args, all environment variables, th
 Clean up the native deployment before moving on:
 
 ```bash
-kubectl delete -f manifests/manifest.yaml
+kubectl delete -n ${NAMESPACE} -f manifests/manifest.yaml
 ```
 
 The manifest mounts:
@@ -159,7 +159,7 @@ This command:
 ## 9. Deploy the SCONE-Protected App
 
 ```bash
-kubectl apply -f manifests/manifest.prod.sanitized.yaml
+kubectl apply -n ${NAMESPACE} -f manifests/manifest.prod.sanitized.yaml
 ```
 
 ---
@@ -175,7 +175,7 @@ retry-spinner -- kubectl logs deployment/java-args-env-file -n "${NAMESPACE}" --
 ## 11. Clean Up
 
 ```bash
-kubectl delete -f manifests/manifest.prod.sanitized.yaml
+kubectl delete -n ${NAMESPACE} -f manifests/manifest.prod.sanitized.yaml
 ```
 
 ---

@@ -245,7 +245,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-tplenv --file "./scone.template.yaml" --output "./scone.yaml"
+tplenv --file "./scone.template.yaml" --output "./scone.yaml" --indent
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -291,7 +291,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f "manifest.prod.sanitized.yaml"
+kubectl apply -n ${NAMESPACE} -f "manifest.prod.sanitized.yaml"
 EOF
 )"
 
@@ -310,7 +310,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=condition=Ready pod -l app="server" --timeout=300s
+kubectl wait -n ${NAMESPACE} --for=condition=Ready pod -l app="server" --timeout=300s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -318,7 +318,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=condition=Ready pod -l app="client" --timeout=300s
+kubectl wait -n ${NAMESPACE} --for=condition=Ready pod -l app="client" --timeout=300s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -342,7 +342,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl port-forward svc/barad-dur 3000 & echo $! > /tmp/pf-3000.pid
+kubectl port-forward -n ${NAMESPACE} svc/barad-dur 3001:3000 & echo $! > /tmp/pf-3001.pid
 EOF
 )"
 
@@ -357,7 +357,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3001/db-query
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -365,7 +365,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3000/db-query
+curl --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 localhost:3001/db-query
 EOF
 )"
 
@@ -386,7 +386,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifest.prod.sanitized.yaml
+kubectl delete -n ${NAMESPACE} -f manifest.prod.sanitized.yaml
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -394,15 +394,15 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kill $(cat /tmp/pf-3000.pid) || true
+kill $(cat /tmp/pf-3001.pid) || true
 EOF
 )"
 pe "$(cat <<'EOF'
-# Remove `/tmp/pf-3000.pid` if it exists.
+# Remove `/tmp/pf-3001.pid` if it exists.
 EOF
 )"
 pe "$(cat <<'EOF'
-rm /tmp/pf-3000.pid
+rm /tmp/pf-3001.pid
 EOF
 )"
 pe "$(cat <<'EOF'

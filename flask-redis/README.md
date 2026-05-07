@@ -121,7 +121,7 @@ We try to ensure the namespace exists. This may fail when running in a container
 
 ```bash
 # Create the Kubernetes namespace if it does not already exist.
-kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -n ${NAMESPACE} -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 ```
 
 ---
@@ -132,7 +132,7 @@ Generate the secret YAML files locally so you can inspect them before applying:
 
 ```bash
 # Generate the Kubernetes secret manifest.
-kubectl create secret generic redis-tls \
+kubectl create -n ${NAMESPACE} secret generic redis-tls \
   --namespace ${NAMESPACE} \
   --from-file=redis.crt=certs/redis.crt \
   --from-file=redis.key=certs/redis.key \
@@ -140,7 +140,7 @@ kubectl create secret generic redis-tls \
   --dry-run=client -o yaml > k8s/secret-redis-tls.yaml
 
 # Generate the Kubernetes secret manifest.
-kubectl create secret generic flask-tls \
+kubectl create -n ${NAMESPACE} secret generic flask-tls \
   --namespace ${NAMESPACE} \
   --from-file=flask.crt=certs/flask.crt \
   --from-file=flask.key=certs/flask.key \
@@ -154,9 +154,9 @@ Review the files in `k8s/`, then apply them:
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f k8s/secret-redis-tls.yaml
+kubectl apply -n ${NAMESPACE} -f k8s/secret-redis-tls.yaml
 # Apply the Kubernetes manifest.
-kubectl apply -f k8s/secret-flask-tls.yaml
+kubectl apply -n ${NAMESPACE} -f k8s/secret-flask-tls.yaml
 ```
 
 ---
@@ -199,7 +199,7 @@ Review `k8s/manifest.yaml`, then apply it:
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f k8s/manifest.yaml --namespace ${NAMESPACE}
+kubectl apply -n ${NAMESPACE} -f k8s/manifest.yaml --namespace ${NAMESPACE}
 ```
 
 ---
@@ -293,11 +293,11 @@ Remove the native workloads and secrets before switching to the confidential ver
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
+kubectl delete -n ${NAMESPACE} -f k8s/manifest.yaml --namespace ${NAMESPACE} --ignore-not-found
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
+kubectl wait -n ${NAMESPACE} --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
+kubectl wait -n ${NAMESPACE} --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 # Delete the Kubernetes resource if it exists.
 kubectl delete secret redis-tls flask-tls --namespace ${NAMESPACE} --ignore-not-found
 ```
@@ -330,7 +330,7 @@ Generate the SCONE config from its template, then run `scone-td-build` to produc
 
 ```bash
 # Render the template with the selected values.
-tplenv --file scone.template.yaml --create-values-file --output scone.yaml
+tplenv --file scone.template.yaml --create-values-file --output scone.yaml --indent
 # Remove `flask-redis-demo.json` if it exists.
 rm flask-redis-demo.json || true
 # Generate the confidential image and sanitized manifest from the SCONE configuration.
@@ -345,7 +345,7 @@ Apply the production sanitized manifest that references the SCONE confidential i
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}
+kubectl apply -n ${NAMESPACE} -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE}
 ```
 
 ---
@@ -359,11 +359,11 @@ kubectl get all -n ${NAMESPACE}
 
 # Wait for Redis
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
+kubectl wait -n ${NAMESPACE} --for=condition=Ready pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
 
 # Wait for Flask API
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=Ready pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
+kubectl wait -n ${NAMESPACE} --for=condition=Ready pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 
 # Check logs
 # Show logs from the Kubernetes workload.
@@ -441,11 +441,11 @@ rm /tmp/pf-14996.pid
 
 # Delete confidential manifest resources
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
+kubectl delete -n ${NAMESPACE} -f manifest.prod.sanitized.yaml --namespace ${NAMESPACE} --ignore-not-found
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
+kubectl wait -n ${NAMESPACE} --for=delete pod --namespace ${NAMESPACE} -l app=flask-api --timeout=300s
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
+kubectl wait -n ${NAMESPACE} --for=delete pod --namespace ${NAMESPACE} -l app=redis --timeout=300s
 ```
 
 ---

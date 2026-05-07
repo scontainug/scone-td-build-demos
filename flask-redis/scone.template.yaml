@@ -39,6 +39,7 @@ kind: Apply
 metadata:
   name: flask-redis-demo
 spec:
+  version: ${SCONE_RUNTIME_VERSION}
   file:
     - "k8s/manifest.yaml"
     - "k8s/secret-flask-tls.yaml"

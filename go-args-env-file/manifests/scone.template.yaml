@@ -21,6 +21,7 @@ kind: Apply
 metadata:
   name: go-args-env-file-example
 spec:
+  version: ${SCONE_RUNTIME_VERSION}
   file:
     - "manifests/manifest.yaml"
   output_manifest_file: "manifests/manifest.prod.sanitized.yaml"

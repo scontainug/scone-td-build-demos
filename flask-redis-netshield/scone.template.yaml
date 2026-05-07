@@ -39,6 +39,7 @@ kind: Apply
 metadata:
   name: flask-redis-demo
 spec:
+  version: ${SCONE_RUNTIME_VERSION}
   file:
     - "k8s/manifest.yaml"
     - "k8s/secret-flask-tls.yaml"
@@ -46,7 +47,7 @@ spec:
   output_manifest_file: "manifest.prod.sanitized.yaml"
   output_session_file: "manifest.prod.session.yaml"
   cas_address:
-    address: cas.default
+    address: ${CAS_NAME}.${CAS_NAMESPACE}
   session_env:
     - {name: SCONE_VERSION, value: "1"}
   manifest_env:
