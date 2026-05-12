@@ -26,7 +26,7 @@ flask-redis-netshield/
 
 - `kubectl` configured for your cluster
 - `docker` with access to a registry your cluster can pull from
-- `openssl`, `tplenv`, and `envsubst` available in your shell
+- `openssl` and `tplenv` available in your shell
 - `scone-td-build` binary
 
 ---
