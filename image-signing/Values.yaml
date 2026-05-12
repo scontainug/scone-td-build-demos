@@ -1,0 +1,12 @@
+environment:
+  IMAGE_NAME: registry.scontain.com/workshop/image-signing:native
+  IMAGE_PULL_SECRET_NAME: sconeapps
+  REPO_CREDENTIALS: ~/.docker/config.json
+  CAS_NAMESPACE: default
+  CAS_NAME: cas
+  DESTINATION_IMAGE_NAME: registry.scontain.com/workshop/image-signing:scone
+  CVM_MODE: ''
+  SCONE_ENCLAVE: ''
+  REGISTRY: registry.scontain.com
+  SCONE_RUNTIME_VERSION: 6.1.0-rc.0
+  NAMESPACE: default

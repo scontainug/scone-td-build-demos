@@ -1,0 +1,3 @@
+- `$REGISTRY` - the registry name. By default, this is `registry.scontain.com`.
+- `$REGISTRY_USER` - the username used to pull the container image.
+- `$REGISTRY_TOKEN` - the token used to pull the image. See <https://sconedocs.github.io/registry/> for instructions on creating this token.
