@@ -503,7 +503,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '## 7. Convert the Manifest'
 printf '%s\n' ''
-printf '%s\n' 'If you want to inspect registration details, see [register-image](../../../register-image.md).'
+printf '%s\n' 'If you want to inspect registration details, see [register-image](https://github.com/scontain/k8s-scone/blob/main/register-image.md).'
 printf '%s\n' ''
 printf "%b" "$RESET"
 

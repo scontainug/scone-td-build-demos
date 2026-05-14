@@ -15,4 +15,6 @@ This file defines the environment variables used to configure this `image-signin
 9. In CVM mode, you can run on confidential Kubernetes nodes or Kata Pods (set to empty).
    We recommend using confidential nodes and setting `${SCONE_ENCLAVE}` to `--scone-enclave`.
 10. The Kubernetes namespace where the demo manifests are deployed is stored in `${NAMESPACE}`.
-    The default value is `default`.
+    The default value is `ci-scone-td-build`.
+11. The container registry hostname is stored in `${REGISTRY}`.
+    The default value is `registry.scontain.com`.

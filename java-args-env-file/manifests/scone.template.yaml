@@ -20,6 +20,7 @@ kind: Apply
 metadata:
   name: java-args-env-file-example
 spec:
+  version: ${SCONE_RUNTIME_VERSION}
   # Inline‑selection: pick *only* the Deployment
   file:
     - "manifests/manifest.yaml"

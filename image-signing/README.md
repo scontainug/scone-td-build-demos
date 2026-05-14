@@ -49,7 +49,7 @@ For the signing and confidential deployment:
 - `$CAS_NAME` - CAS Kubernetes name (for example, `cas`)
 - `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX
 - `$SCONE_ENCLAVE` - In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods
-- `$NAMESPACE` - Kubernetes namespace where the demo runs (default: `default`)
+- `$NAMESPACE` - Kubernetes namespace where the demo runs (default: `ci-scone-td-build`)
 
 Defaults are stored in `Values.yaml`. We use [`tplenv`](https://github.com/scontainug/tplenv) to confirm or override values:
 
@@ -84,6 +84,8 @@ kubectl apply -f k8s/key-provider.yaml
 kubectl wait --for=condition=available deployment/kbs -n trustee --timeout=120s
 # Wait for the key provider to be ready.
 kubectl wait --for=condition=available deployment/keyprovider -n trustee --timeout=120s
+# Kill any existing listener on port 50000 before starting the port-forward.
+lsof -i :50000 -t 2>/dev/null | xargs -r kill 2>/dev/null || true
 # Forward the key provider port to localhost so skopeo can reach it.
 kubectl port-forward -n trustee svc/keyprovider 50000:50000 &
 export PORT_FORWARD_PID=$!
@@ -97,18 +99,16 @@ Generate an Ed25519 key pair. The private key signs the image; the public key ca
 to verify signatures without exposing the private key.
 
 ```bash
-# Generate the Ed25519 signing private key.
-openssl genpkey -algorithm ed25519 -out ./config/image-signing-key.pem
-# Extract the corresponding public key.
-openssl pkey -in ./config/image-signing-key.pem -pubout -out ./config/public.pub
+# Generate the Ed25519 signing key pair in the format expected by skopeo.
+skopeo generate-sigstore-key --output-prefix ./config/image-signing-key --passphrase-file ./config/empty-passphrase.txt
 ```
 
 Configure the registry to store signatures as sigstore OCI attachments:
 
 ```bash
-# Configure sigstore attachments for the registry.
-sudo mkdir -p /etc/containers/registries.d
-cat <<EOF | sudo tee /etc/containers/registries.d/default.yaml > /dev/null
+# Configure sigstore attachments for the registry (user-level, no sudo required).
+mkdir -p ~/.config/containers/registries.d
+cat <<EOF > ~/.config/containers/registries.d/default.yaml
 docker:
     ${REGISTRY}:
         use-sigstore-attachments: true
@@ -198,7 +198,8 @@ If attestation fails, inspect the command output for detected vulnerabilities an
 
 The `--signing-key` flag activates the encrypted-image flow: `scone-td-build` sconifies the image,
 then uses `skopeo` to encrypt the layers with the attestation-agent key provider and embed a
-Sigstore signature. The result is pushed to `${DESTINATION_IMAGE_NAME}-encrypted`.
+Sigstore signature. When `--destination-image` is set the result is pushed directly to
+`${DESTINATION_IMAGE_NAME}` (no `-encrypted` suffix is added).
 
 ```bash
 # Register, sign, and encrypt the confidential image.
@@ -209,7 +210,7 @@ OCICRYPT_KEYPROVIDER_CONFIG=./config/ocicrypt.conf \
     --manifest-env SCONE_PRODUCTION=0 \
     -s ./storage.json \
     --destination-image ${DESTINATION_IMAGE_NAME} \
-    --signing-key ./config/image-signing-key.pem \
+    --signing-key ./config/image-signing-key.private \
     --signing-passphrase-file ./config/empty-passphrase.txt \
     --repo-credentials ${REPO_CREDENTIALS} \
     --version ${SCONE_RUNTIME_VERSION} \
@@ -222,43 +223,32 @@ Inspect the signed and encrypted image to confirm the Sigstore signature is atta
 
 ```bash
 # Inspect the signed and encrypted image.
-skopeo inspect docker://${DESTINATION_IMAGE_NAME}-encrypted
+skopeo inspect docker://${DESTINATION_IMAGE_NAME}
 ```
 
-## 11. Transform the Kubernetes Manifest
+## 11. Transform and Deploy the Signed Confidential Application
 
-Convert the native manifest into a sanitized confidential manifest:
+> **Blocked:** This step requires `ctd-decoder` to be installed on every cluster node and
+> containerd to be configured with the `ocicrypt` stream processor so it can decrypt the encrypted
+> image layers at pull time. Plain k3d clusters do not include this. See
+> [containers/ocicrypt](https://github.com/containers/ocicrypt) for setup instructions.
+>
+> Once the cluster has `ctd-decoder`, run:
+>
+> ```text
+> scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json \
+>   --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G \
+>   --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml \
+>   --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE} ${SCONE_ENCLAVE}
+>
+> kubectl apply -f manifest.job.sanitized.yaml -n ${NAMESPACE}
+> kubectl wait --for=condition=complete job/image-signing -n ${NAMESPACE} --timeout=300s
+> kubectl logs job/image-signing -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps
+> ```
 
-```bash
-# Convert the native manifest into a confidential manifest.
-scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml ${CVM_MODE} ${SCONE_ENCLAVE}
-```
-
-Update the manifest to reference the signed and encrypted image:
-
-```bash
-# Replace the protected image reference with the signed and encrypted variant.
-sed "s|image: ${DESTINATION_IMAGE_NAME}|image: ${DESTINATION_IMAGE_NAME}-encrypted|g" manifest.job.sanitized.yaml > manifest.job.signed.yaml
-```
-
-## 12. Deploy the Signed Confidential Application
-
-```bash
-# Apply the signed confidential manifest.
-kubectl apply -f manifest.job.signed.yaml -n ${NAMESPACE}
-# Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=complete job/image-signing -n ${NAMESPACE} --timeout=300s
-# Show logs from the Kubernetes workload.
-kubectl logs job/image-signing -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps
-```
-
-## 13. Uninstall `image-signing`
+## 12. Uninstall `image-signing`
 
 ```bash
-# Delete the Kubernetes resource if it exists.
-kubectl delete job image-signing -n ${NAMESPACE} || true
-# Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod -l app=image-signing -n ${NAMESPACE} --timeout=300s
 # Stop the key provider port-forward.
 kill ${PORT_FORWARD_PID} 2>/dev/null || true
 # Delete the key provider.

@@ -131,7 +131,7 @@ printf '%s\n' '- `$CAS_NAMESPACE` - CAS Kubernetes namespace (for example, `defa
 printf '%s\n' '- `$CAS_NAME` - CAS Kubernetes name (for example, `cas`)'
 printf '%s\n' '- `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX'
 printf '%s\n' '- `$SCONE_ENCLAVE` - In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods'
-printf '%s\n' '- `$NAMESPACE` - Kubernetes namespace where the demo runs (default: `default`)'
+printf '%s\n' '- `$NAMESPACE` - Kubernetes namespace where the demo runs (default: `ci-scone-td-build`)'
 printf '%s\n' ''
 printf '%s\n' 'Defaults are stored in `Values.yaml`. We use [`tplenv`](https://github.com/scontainug/tplenv) to confirm or override values:'
 printf '%s\n' ''
@@ -189,6 +189,8 @@ printf '%s\n' '# Wait for KBS to be ready.'
 printf '%s\n' 'kubectl wait --for=condition=available deployment/kbs -n trustee --timeout=120s'
 printf '%s\n' '# Wait for the key provider to be ready.'
 printf '%s\n' 'kubectl wait --for=condition=available deployment/keyprovider -n trustee --timeout=120s'
+printf '%s\n' '# Kill any existing listener on port 50000 before starting the port-forward.'
+printf '%s\n' 'lsof -i :50000 -t 2>/dev/null | xargs -r kill 2>/dev/null || true'
 printf '%s\n' '# Forward the key provider port to localhost so skopeo can reach it.'
 printf '%s\n' 'kubectl port-forward -n trustee svc/keyprovider 50000:50000 &'
 printf '%s\n' 'export PORT_FORWARD_PID=$!'
@@ -204,6 +206,8 @@ kubectl apply -f k8s/key-provider.yaml
 kubectl wait --for=condition=available deployment/kbs -n trustee --timeout=120s
 # Wait for the key provider to be ready.
 kubectl wait --for=condition=available deployment/keyprovider -n trustee --timeout=120s
+# Kill any existing listener on port 50000 before starting the port-forward.
+lsof -i :50000 -t 2>/dev/null | xargs -r kill 2>/dev/null || true
 # Forward the key provider port to localhost so skopeo can reach it.
 kubectl port-forward -n trustee svc/keyprovider 50000:50000 &
 export PORT_FORWARD_PID=$!
@@ -220,16 +224,12 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '# Generate the Ed25519 signing private key.'
-printf '%s\n' 'openssl genpkey -algorithm ed25519 -out ./config/image-signing-key.pem'
-printf '%s\n' '# Extract the corresponding public key.'
-printf '%s\n' 'openssl pkey -in ./config/image-signing-key.pem -pubout -out ./config/public.pub'
+printf '%s\n' '# Generate the Ed25519 signing key pair in the format expected by skopeo.'
+printf '%s\n' 'skopeo generate-sigstore-key --output-prefix ./config/image-signing-key --passphrase-file ./config/empty-passphrase.txt'
 printf "${RESET}"
 
-# Generate the Ed25519 signing private key.
-openssl genpkey -algorithm ed25519 -out ./config/image-signing-key.pem
-# Extract the corresponding public key.
-openssl pkey -in ./config/image-signing-key.pem -pubout -out ./config/public.pub
+# Generate the Ed25519 signing key pair in the format expected by skopeo.
+skopeo generate-sigstore-key --output-prefix ./config/image-signing-key --passphrase-file ./config/empty-passphrase.txt
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -238,18 +238,18 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '# Configure sigstore attachments for the registry.'
-printf '%s\n' 'sudo mkdir -p /etc/containers/registries.d'
-printf '%s\n' 'cat <<EOF | sudo tee /etc/containers/registries.d/default.yaml > /dev/null'
+printf '%s\n' '# Configure sigstore attachments for the registry (user-level, no sudo required).'
+printf '%s\n' 'mkdir -p ~/.config/containers/registries.d'
+printf '%s\n' 'cat <<EOF > ~/.config/containers/registries.d/default.yaml'
 printf '%s\n' 'docker:'
 printf '%s\n' '    ${REGISTRY}:'
 printf '%s\n' '        use-sigstore-attachments: true'
 printf '%s\n' 'EOF'
 printf "${RESET}"
 
-# Configure sigstore attachments for the registry.
-sudo mkdir -p /etc/containers/registries.d
-cat <<EOF | sudo tee /etc/containers/registries.d/default.yaml > /dev/null
+# Configure sigstore attachments for the registry (user-level, no sudo required).
+mkdir -p ~/.config/containers/registries.d
+cat <<EOF > ~/.config/containers/registries.d/default.yaml
 docker:
     ${REGISTRY}:
         use-sigstore-attachments: true
@@ -407,7 +407,8 @@ printf '%s\n' '## 9. Register and Sign the Confidential Image'
 printf '%s\n' ''
 printf '%s\n' 'The `--signing-key` flag activates the encrypted-image flow: `scone-td-build` sconifies the image,'
 printf '%s\n' 'then uses `skopeo` to encrypt the layers with the attestation-agent key provider and embed a'
-printf '%s\n' 'Sigstore signature. The result is pushed to `${DESTINATION_IMAGE_NAME}-encrypted`.'
+printf '%s\n' 'Sigstore signature. When `--destination-image` is set the result is pushed directly to'
+printf '%s\n' '`${DESTINATION_IMAGE_NAME}` (no `-encrypted` suffix is added).'
 printf '%s\n' ''
 printf "${RESET}"
 
@@ -420,7 +421,7 @@ printf '%s\n' '    --unprotected-image rust:latest \'
 printf '%s\n' '    --manifest-env SCONE_PRODUCTION=0 \'
 printf '%s\n' '    -s ./storage.json \'
 printf '%s\n' '    --destination-image ${DESTINATION_IMAGE_NAME} \'
-printf '%s\n' '    --signing-key ./config/image-signing-key.pem \'
+printf '%s\n' '    --signing-key ./config/image-signing-key.private \'
 printf '%s\n' '    --signing-passphrase-file ./config/empty-passphrase.txt \'
 printf '%s\n' '    --repo-credentials ${REPO_CREDENTIALS} \'
 printf '%s\n' '    --version ${SCONE_RUNTIME_VERSION} \'
@@ -435,7 +436,7 @@ OCICRYPT_KEYPROVIDER_CONFIG=./config/ocicrypt.conf \
     --manifest-env SCONE_PRODUCTION=0 \
     -s ./storage.json \
     --destination-image ${DESTINATION_IMAGE_NAME} \
-    --signing-key ./config/image-signing-key.pem \
+    --signing-key ./config/image-signing-key.private \
     --signing-passphrase-file ./config/empty-passphrase.txt \
     --repo-credentials ${REPO_CREDENTIALS} \
     --version ${SCONE_RUNTIME_VERSION} \
@@ -451,75 +452,39 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Inspect the signed and encrypted image.'
-printf '%s\n' 'skopeo inspect docker://${DESTINATION_IMAGE_NAME}-encrypted'
+printf '%s\n' 'skopeo inspect docker://${DESTINATION_IMAGE_NAME}'
 printf "${RESET}"
 
 # Inspect the signed and encrypted image.
-skopeo inspect docker://${DESTINATION_IMAGE_NAME}-encrypted
+skopeo inspect docker://${DESTINATION_IMAGE_NAME}
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '## 11. Transform the Kubernetes Manifest'
+printf '%s\n' '## 11. Transform and Deploy the Signed Confidential Application'
 printf '%s\n' ''
-printf '%s\n' 'Convert the native manifest into a sanitized confidential manifest:'
+printf '%s\n' '> **Blocked:** This step requires `ctd-decoder` to be installed on every cluster node and'
+printf '%s\n' '> containerd to be configured with the `ocicrypt` stream processor so it can decrypt the encrypted'
+printf '%s\n' '> image layers at pull time. Plain k3d clusters do not include this. See'
+printf '%s\n' '> [containers/ocicrypt](https://github.com/containers/ocicrypt) for setup instructions.'
+printf '%s\n' '>'
+printf '%s\n' '> Once the cluster has `ctd-decoder`, run:'
+printf '%s\n' '>'
+printf '%s\n' '> ```text'
+printf '%s\n' '> scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json \'
+printf '%s\n' '>   --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G \'
+printf '%s\n' '>   --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml \'
+printf '%s\n' '>   --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE} ${SCONE_ENCLAVE}'
+printf '%s\n' '>'
+printf '%s\n' '> kubectl apply -f manifest.job.sanitized.yaml -n ${NAMESPACE}'
+printf '%s\n' '> kubectl wait --for=condition=complete job/image-signing -n ${NAMESPACE} --timeout=300s'
+printf '%s\n' '> kubectl logs job/image-signing -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps'
+printf '%s\n' '> ```'
+printf '%s\n' ''
+printf '%s\n' '## 12. Uninstall `image-signing`'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '# Convert the native manifest into a confidential manifest.'
-printf '%s\n' 'scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml ${CVM_MODE} ${SCONE_ENCLAVE}'
-printf "${RESET}"
-
-# Convert the native manifest into a confidential manifest.
-scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml ${CVM_MODE} ${SCONE_ENCLAVE}
-
-printf "${VIOLET}"
-printf '%s\n' ''
-printf '%s\n' 'Update the manifest to reference the signed and encrypted image:'
-printf '%s\n' ''
-printf "${RESET}"
-
-printf "${ORANGE}"
-printf '%s\n' '# Replace the protected image reference with the signed and encrypted variant.'
-printf '%s\n' 'sed "s|image: ${DESTINATION_IMAGE_NAME}|image: ${DESTINATION_IMAGE_NAME}-encrypted|g" manifest.job.sanitized.yaml > manifest.job.signed.yaml'
-printf "${RESET}"
-
-# Replace the protected image reference with the signed and encrypted variant.
-sed "s|image: ${DESTINATION_IMAGE_NAME}|image: ${DESTINATION_IMAGE_NAME}-encrypted|g" manifest.job.sanitized.yaml > manifest.job.signed.yaml
-
-printf "${VIOLET}"
-printf '%s\n' ''
-printf '%s\n' '## 12. Deploy the Signed Confidential Application'
-printf '%s\n' ''
-printf "${RESET}"
-
-printf "${ORANGE}"
-printf '%s\n' '# Apply the signed confidential manifest.'
-printf '%s\n' 'kubectl apply -f manifest.job.signed.yaml -n ${NAMESPACE}'
-printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
-printf '%s\n' 'kubectl wait --for=condition=complete job/image-signing -n ${NAMESPACE} --timeout=300s'
-printf '%s\n' '# Show logs from the Kubernetes workload.'
-printf '%s\n' 'kubectl logs job/image-signing -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps'
-printf "${RESET}"
-
-# Apply the signed confidential manifest.
-kubectl apply -f manifest.job.signed.yaml -n ${NAMESPACE}
-# Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=complete job/image-signing -n ${NAMESPACE} --timeout=300s
-# Show logs from the Kubernetes workload.
-kubectl logs job/image-signing -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps
-
-printf "${VIOLET}"
-printf '%s\n' ''
-printf '%s\n' '## 13. Uninstall `image-signing`'
-printf '%s\n' ''
-printf "${RESET}"
-
-printf "${ORANGE}"
-printf '%s\n' '# Delete the Kubernetes resource if it exists.'
-printf '%s\n' 'kubectl delete job image-signing -n ${NAMESPACE} || true'
-printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
-printf '%s\n' 'kubectl wait --for=delete pod -l app=image-signing -n ${NAMESPACE} --timeout=300s'
 printf '%s\n' '# Stop the key provider port-forward.'
 printf '%s\n' 'kill ${PORT_FORWARD_PID} 2>/dev/null || true'
 printf '%s\n' '# Delete the key provider.'
@@ -530,10 +495,6 @@ printf '%s\n' '# Return to the previous working directory.'
 printf '%s\n' 'popd'
 printf "${RESET}"
 
-# Delete the Kubernetes resource if it exists.
-kubectl delete job image-signing -n ${NAMESPACE} || true
-# Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod -l app=image-signing -n ${NAMESPACE} --timeout=300s
 # Stop the key provider port-forward.
 kill ${PORT_FORWARD_PID} 2>/dev/null || true
 # Delete the key provider.

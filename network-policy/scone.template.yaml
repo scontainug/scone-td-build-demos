@@ -37,6 +37,7 @@ kind: Apply
 metadata:
   name: netshield
 spec:
+  version: ${SCONE_RUNTIME_VERSION}
   file:
     - "${SCRIPT_DIR}/manifest.yaml"
   output_manifest_file: "${SCRIPT_DIR}/manifest.prod.sanitized.yaml"
