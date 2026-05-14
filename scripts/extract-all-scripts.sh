@@ -51,6 +51,7 @@ files=(
   "flask-redis/README.md scripts/flask-redis.sh"
   "flask-redis-netshield/README.md scripts/flask-redis-netshield.sh"
   "go-args-env-file/README.md scripts/go-args-env-file.sh"
+  "image-signing/README.md scripts/image-signing.sh"
 )
 
 generated_scripts=()

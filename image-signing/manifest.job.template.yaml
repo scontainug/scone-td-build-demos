@@ -1,0 +1,18 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: image-signing
+spec:
+  template:
+    metadata:
+      labels:
+        app: image-signing
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: image-signing
+          image: ${IMAGE_NAME}
+          imagePullPolicy: Always
+      imagePullSecrets:
+        - name: ${IMAGE_PULL_SECRET_NAME}
+  backoffLimit: 4

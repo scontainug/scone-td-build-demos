@@ -11,7 +11,7 @@ show_help() {
   cat <<USAGE
 Usage: $0 [--help] [--non-interactive]
 
-Runs shell commands extracted from hello-world/README.md.
+Runs shell commands extracted from image-signing/README.md.
 
 Options:
   --help             Show this help message and exit.
@@ -71,11 +71,14 @@ if [[ "$(pwd)" != "$expected_workdir" ]]; then
 fi
 
 printf "${VIOLET}"
-printf '%s\n' '# SCONE: Hello World'
+printf '%s\n' '# SCONE: Image Signing'
 printf '%s\n' ''
-printf '%s\n' '[![Hello World Example](../docs/hello-world.gif)](../docs/hello-world.mp4)'
+printf '%s\n' 'This example shows how to sign and encrypt a confidential container image using a Sigstore private'
+printf '%s\n' 'key, then verify the signature before deploying it to Kubernetes.'
 printf '%s\n' ''
-printf '%s\n' 'This example shows how to build a simple cloud-native `hello-world` application in Rust, run it natively in Kubernetes, and then deploy a confidential version with SCONE.'
+printf '%s\n' 'Image signing provides supply chain integrity: only images signed with a trusted private key pass'
+printf '%s\n' 'verification. Combined with SCONE encryption, the image layers are also protected at rest in the'
+printf '%s\n' 'registry.'
 printf '%s\n' ''
 printf '%s\n' '## 1. Prerequisites'
 printf '%s\n' ''
@@ -84,6 +87,8 @@ printf '%s\n' '- A Kubernetes cluster with SGX or CVM support'
 printf '%s\n' '- The Kubernetes command-line tool (`kubectl`)'
 printf '%s\n' '- Rust `cargo` (`curl --proto '\''=https'\'' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)'
 printf '%s\n' '- `tplenv` (`cargo install tplenv`) and `retry-spinner` (`cargo install retry-spinner`)'
+printf '%s\n' '- `skopeo` for image inspection and signature verification'
+printf '%s\n' '- `openssl` for signing key generation'
 printf '%s\n' ''
 printf '%s\n' 'Follow the [Setup environment](https://github.com/scontain/scone) guide to install the required tools:'
 printf '%s\n' ''
@@ -97,14 +102,14 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '# Enter `hello-world` and remember the previous directory.'
-printf '%s\n' 'pushd hello-world'
+printf '%s\n' '# Enter `image-signing` and remember the previous directory.'
+printf '%s\n' 'pushd image-signing'
 printf '%s\n' '# Remove `storage.json` if it exists.'
 printf '%s\n' 'rm -f storage.json || true'
 printf "${RESET}"
 
-# Enter `hello-world` and remember the previous directory.
-pushd hello-world
+# Enter `image-signing` and remember the previous directory.
+pushd image-signing
 # Remove `storage.json` if it exists.
 rm -f storage.json || true
 
@@ -114,18 +119,19 @@ printf '%s\n' 'This example uses the following variables.'
 printf '%s\n' ''
 printf '%s\n' 'For the native deployment:'
 printf '%s\n' ''
-printf '%s\n' '- `$IMAGE_NAME` - Name of the native container image for `hello-world`'
+printf '%s\n' '- `$IMAGE_NAME` - Name of the native container image'
 printf '%s\n' '- `$IMAGE_PULL_SECRET_NAME` - Pull secret name for this image (default: `sconeapps`)'
 printf '%s\n' ''
-printf '%s\n' 'For the confidential deployment:'
+printf '%s\n' 'For the signing and confidential deployment:'
 printf '%s\n' ''
-printf '%s\n' '- `$DESTINATION_IMAGE_NAME` - Name of the confidential image'
-printf '%s\n' '- `$SCONE_VERSION` - SCONE version to use (for example, `6.1.0-rc.0`)'
+printf '%s\n' '- `$DESTINATION_IMAGE_NAME` - Name of the SCONE-protected image'
+printf '%s\n' '- `$REPO_CREDENTIALS` - Path to Docker credentials file used by the signing push (default: `~/.docker/config.json`)'
+printf '%s\n' '- `$SCONE_RUNTIME_VERSION` - SCONE version to use (for example, `6.1.0-rc.0`)'
 printf '%s\n' '- `$CAS_NAMESPACE` - CAS Kubernetes namespace (for example, `default`)'
 printf '%s\n' '- `$CAS_NAME` - CAS Kubernetes name (for example, `cas`)'
 printf '%s\n' '- `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX'
 printf '%s\n' '- `$SCONE_ENCLAVE` - In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods'
-printf '%s\n' '- `$NAMESPACE` - Kubernetes namespace where the demo runs (default: `default`)'
+printf '%s\n' '- `$NAMESPACE` - Kubernetes namespace where the demo runs (default: `ci-scone-td-build`)'
 printf '%s\n' ''
 printf '%s\n' 'Defaults are stored in `Values.yaml`. We use [`tplenv`](https://github.com/scontainug/tplenv) to confirm or override values:'
 printf '%s\n' ''
@@ -167,7 +173,91 @@ tplenv --file manifest.job.template.yaml --create-values-file --output manifest.
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '## 3. Build the Native Container Image'
+printf '%s\n' '## 3. Deploy Key Management Infrastructure'
+printf '%s\n' ''
+printf '%s\n' 'The signing and encryption flow requires a Key Broker Service (KBS) and a key provider running in'
+printf '%s\n' 'the cluster. The key provider exposes a gRPC endpoint that `skopeo` uses during image encryption.'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' '# Deploy the Key Broker Service.'
+printf '%s\n' 'kubectl apply -f k8s/kbs.yaml'
+printf '%s\n' '# Deploy the key provider.'
+printf '%s\n' 'kubectl apply -f k8s/key-provider.yaml'
+printf '%s\n' '# Wait for KBS to be ready.'
+printf '%s\n' 'kubectl wait --for=condition=available deployment/kbs -n trustee --timeout=120s'
+printf '%s\n' '# Wait for the key provider to be ready.'
+printf '%s\n' 'kubectl wait --for=condition=available deployment/keyprovider -n trustee --timeout=120s'
+printf '%s\n' '# Kill any existing listener on port 50000 before starting the port-forward.'
+printf '%s\n' 'lsof -i :50000 -t 2>/dev/null | xargs -r kill 2>/dev/null || true'
+printf '%s\n' '# Forward the key provider port to localhost so skopeo can reach it.'
+printf '%s\n' 'kubectl port-forward -n trustee svc/keyprovider 50000:50000 &'
+printf '%s\n' 'export PORT_FORWARD_PID=$!'
+printf '%s\n' '# Give the port-forward a moment to establish the connection.'
+printf '%s\n' 'sleep 3'
+printf "${RESET}"
+
+# Deploy the Key Broker Service.
+kubectl apply -f k8s/kbs.yaml
+# Deploy the key provider.
+kubectl apply -f k8s/key-provider.yaml
+# Wait for KBS to be ready.
+kubectl wait --for=condition=available deployment/kbs -n trustee --timeout=120s
+# Wait for the key provider to be ready.
+kubectl wait --for=condition=available deployment/keyprovider -n trustee --timeout=120s
+# Kill any existing listener on port 50000 before starting the port-forward.
+lsof -i :50000 -t 2>/dev/null | xargs -r kill 2>/dev/null || true
+# Forward the key provider port to localhost so skopeo can reach it.
+kubectl port-forward -n trustee svc/keyprovider 50000:50000 &
+export PORT_FORWARD_PID=$!
+# Give the port-forward a moment to establish the connection.
+sleep 3
+
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' '## 4. Generate Signing Keys'
+printf '%s\n' ''
+printf '%s\n' 'Generate an Ed25519 key pair. The private key signs the image; the public key can be distributed'
+printf '%s\n' 'to verify signatures without exposing the private key.'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' '# Generate the Ed25519 signing key pair in the format expected by skopeo.'
+printf '%s\n' 'skopeo generate-sigstore-key --output-prefix ./config/image-signing-key --passphrase-file ./config/empty-passphrase.txt'
+printf "${RESET}"
+
+# Generate the Ed25519 signing key pair in the format expected by skopeo.
+skopeo generate-sigstore-key --output-prefix ./config/image-signing-key --passphrase-file ./config/empty-passphrase.txt
+
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' 'Configure the registry to store signatures as sigstore OCI attachments:'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' '# Configure sigstore attachments for the registry (user-level, no sudo required).'
+printf '%s\n' 'mkdir -p ~/.config/containers/registries.d'
+printf '%s\n' 'cat <<EOF > ~/.config/containers/registries.d/default.yaml'
+printf '%s\n' 'docker:'
+printf '%s\n' '    ${REGISTRY}:'
+printf '%s\n' '        use-sigstore-attachments: true'
+printf '%s\n' 'EOF'
+printf "${RESET}"
+
+# Configure sigstore attachments for the registry (user-level, no sudo required).
+mkdir -p ~/.config/containers/registries.d
+cat <<EOF > ~/.config/containers/registries.d/default.yaml
+docker:
+    ${REGISTRY}:
+        use-sigstore-attachments: true
+EOF
+
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' '## 5. Build the Native Container Image'
 printf '%s\n' ''
 printf '%s\n' 'Create the Rust project (or reuse an existing one):'
 printf '%s\n' ''
@@ -175,11 +265,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Create the Rust project in `hello-world` if it does not already exist.'
-printf '%s\n' 'cargo new hello-world || echo "Hello World already exists - using existing one"'
+printf '%s\n' 'cargo new hello-world || echo "hello-world already exists - using existing one"'
 printf "${RESET}"
 
 # Create the Rust project in `hello-world` if it does not already exist.
-cargo new hello-world || echo "Hello World already exists - using existing one"
+cargo new hello-world || echo "hello-world already exists - using existing one"
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -201,7 +291,7 @@ docker push $IMAGE_NAME
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '## 4. Create a Pull Secret'
+printf '%s\n' '## 6. Create a Pull Secret'
 printf '%s\n' ''
 printf '%s\n' 'If the pull secret does not exist yet, create it using registry credentials.'
 printf '%s\n' ''
@@ -241,19 +331,19 @@ fi
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '## 5. Run the Native Hello-World Application'
+printf '%s\n' '## 7. Run the Native Application'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Delete the Kubernetes resource if it exists.'
-printf '%s\n' 'kubectl delete job hello-world -n ${NAMESPACE} || echo "ok - no previous job that we need to delete"'
+printf '%s\n' 'kubectl delete job image-signing -n ${NAMESPACE} || echo "ok - no previous job that we need to delete"'
 printf '%s\n' '# Apply the Kubernetes manifest.'
 printf '%s\n' 'kubectl apply -f manifest.job.yaml -n ${NAMESPACE}'
 printf "${RESET}"
 
 # Delete the Kubernetes resource if it exists.
-kubectl delete job hello-world -n ${NAMESPACE} || echo "ok - no previous job that we need to delete"
+kubectl delete job image-signing -n ${NAMESPACE} || echo "ok - no previous job that we need to delete"
 # Apply the Kubernetes manifest.
 kubectl apply -f manifest.job.yaml -n ${NAMESPACE}
 
@@ -265,15 +355,15 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
-printf '%s\n' 'kubectl wait --for=condition=complete job/hello-world -n ${NAMESPACE} --timeout=300s'
+printf '%s\n' 'kubectl wait --for=condition=complete job/image-signing -n ${NAMESPACE} --timeout=300s'
 printf '%s\n' '# Show logs from the Kubernetes workload.'
-printf '%s\n' 'kubectl logs job/hello-world -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps'
+printf '%s\n' 'kubectl logs job/image-signing -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps'
 printf "${RESET}"
 
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=complete job/hello-world -n ${NAMESPACE} --timeout=300s
+kubectl wait --for=condition=complete job/image-signing -n ${NAMESPACE} --timeout=300s
 # Show logs from the Kubernetes workload.
-kubectl logs job/hello-world -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps
+kubectl logs job/image-signing -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -283,19 +373,19 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Delete the Kubernetes resource if it exists.'
-printf '%s\n' 'kubectl delete job hello-world -n ${NAMESPACE}'
+printf '%s\n' 'kubectl delete job image-signing -n ${NAMESPACE}'
 printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
-printf '%s\n' 'kubectl wait --for=delete pod -l app=hello-world -n ${NAMESPACE} --timeout=300s'
+printf '%s\n' 'kubectl wait --for=delete pod -l app=image-signing -n ${NAMESPACE} --timeout=300s'
 printf "${RESET}"
 
 # Delete the Kubernetes resource if it exists.
-kubectl delete job hello-world -n ${NAMESPACE}
+kubectl delete job image-signing -n ${NAMESPACE}
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod -l app=hello-world -n ${NAMESPACE} --timeout=300s
+kubectl wait --for=delete pod -l app=image-signing -n ${NAMESPACE} --timeout=300s
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '## 6. Attest SCONE CAS'
+printf '%s\n' '## 8. Attest SCONE CAS'
 printf '%s\n' ''
 printf '%s\n' 'Before sending encrypted policies to CAS, attest CAS via the Kubernetes API:'
 printf '%s\n' ''
@@ -313,79 +403,104 @@ printf "${VIOLET}"
 printf '%s\n' ''
 printf '%s\n' 'If attestation fails, inspect the command output for detected vulnerabilities and suggested tolerance flags.'
 printf '%s\n' ''
-printf '%s\n' '## 7. Register the Confidential Image'
+printf '%s\n' '## 9. Register and Sign the Confidential Image'
 printf '%s\n' ''
-printf '%s\n' 'Register the image for confidential execution:'
+printf '%s\n' 'The `--signing-key` flag activates the encrypted-image flow: `scone-td-build` sconifies the image,'
+printf '%s\n' 'then uses `skopeo` to encrypt the layers with the attestation-agent key provider and embed a'
+printf '%s\n' 'Sigstore signature. When `--destination-image` is set the result is pushed directly to'
+printf '%s\n' '`${DESTINATION_IMAGE_NAME}` (no `-encrypted` suffix is added).'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '# Register the image for confidential execution.'
-printf '%s\n' 'scone-td-build register --protected-image $IMAGE_NAME --unprotected-image rust:latest --manifest-env SCONE_PRODUCTION=0 -s ./storage.json --destination-image ${DESTINATION_IMAGE_NAME} --push --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE}'
+printf '%s\n' '# Register, sign, and encrypt the confidential image.'
+printf '%s\n' 'OCICRYPT_KEYPROVIDER_CONFIG=./config/ocicrypt.conf \'
+printf '%s\n' '  scone-td-build register \'
+printf '%s\n' '    --protected-image $IMAGE_NAME \'
+printf '%s\n' '    --unprotected-image rust:latest \'
+printf '%s\n' '    --manifest-env SCONE_PRODUCTION=0 \'
+printf '%s\n' '    -s ./storage.json \'
+printf '%s\n' '    --destination-image ${DESTINATION_IMAGE_NAME} \'
+printf '%s\n' '    --signing-key ./config/image-signing-key.private \'
+printf '%s\n' '    --signing-passphrase-file ./config/empty-passphrase.txt \'
+printf '%s\n' '    --repo-credentials ${REPO_CREDENTIALS} \'
+printf '%s\n' '    --version ${SCONE_RUNTIME_VERSION} \'
+printf '%s\n' '    ${CVM_MODE}'
 printf "${RESET}"
 
-# Register the image for confidential execution.
-scone-td-build register --protected-image $IMAGE_NAME --unprotected-image rust:latest --manifest-env SCONE_PRODUCTION=0 -s ./storage.json --destination-image ${DESTINATION_IMAGE_NAME} --push --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE}
+# Register, sign, and encrypt the confidential image.
+OCICRYPT_KEYPROVIDER_CONFIG=./config/ocicrypt.conf \
+  scone-td-build register \
+    --protected-image $IMAGE_NAME \
+    --unprotected-image rust:latest \
+    --manifest-env SCONE_PRODUCTION=0 \
+    -s ./storage.json \
+    --destination-image ${DESTINATION_IMAGE_NAME} \
+    --signing-key ./config/image-signing-key.private \
+    --signing-passphrase-file ./config/empty-passphrase.txt \
+    --repo-credentials ${REPO_CREDENTIALS} \
+    --version ${SCONE_RUNTIME_VERSION} \
+    ${CVM_MODE}
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' 'This creates a protected image (or uses `--destination-image` if provided) and decouples your deployment from upstream image changes.'
+printf '%s\n' '## 10. Verify Image Signature'
 printf '%s\n' ''
-printf '%s\n' '## 8. Transform the Kubernetes Manifest'
-printf '%s\n' ''
-printf '%s\n' 'Convert the native manifest into a sanitized confidential manifest:'
+printf '%s\n' 'Inspect the signed and encrypted image to confirm the Sigstore signature is attached:'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '# Convert the native manifest into a confidential manifest.'
-printf '%s\n' 'scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE} ${SCONE_ENCLAVE}'
+printf '%s\n' '# Inspect the signed and encrypted image.'
+printf '%s\n' 'skopeo inspect docker://${DESTINATION_IMAGE_NAME}'
 printf "${RESET}"
 
-# Convert the native manifest into a confidential manifest.
-scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE} ${SCONE_ENCLAVE}
+# Inspect the signed and encrypted image.
+skopeo inspect docker://${DESTINATION_IMAGE_NAME}
 
 printf "${VIOLET}"
 printf '%s\n' ''
-printf '%s\n' '## 9. Deploy the Confidential Manifest'
+printf '%s\n' '## 11. Transform and Deploy the Signed Confidential Application'
+printf '%s\n' ''
+printf '%s\n' '> **Blocked:** This step requires `ctd-decoder` to be installed on every cluster node and'
+printf '%s\n' '> containerd to be configured with the `ocicrypt` stream processor so it can decrypt the encrypted'
+printf '%s\n' '> image layers at pull time. Plain k3d clusters do not include this. See'
+printf '%s\n' '> [containers/ocicrypt](https://github.com/containers/ocicrypt) for setup instructions.'
+printf '%s\n' '>'
+printf '%s\n' '> Once the cluster has `ctd-decoder`, run:'
+printf '%s\n' '>'
+printf '%s\n' '> ```text'
+printf '%s\n' '> scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json \'
+printf '%s\n' '>   --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G \'
+printf '%s\n' '>   --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml \'
+printf '%s\n' '>   --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE} ${SCONE_ENCLAVE}'
+printf '%s\n' '>'
+printf '%s\n' '> kubectl apply -f manifest.job.sanitized.yaml -n ${NAMESPACE}'
+printf '%s\n' '> kubectl wait --for=condition=complete job/image-signing -n ${NAMESPACE} --timeout=300s'
+printf '%s\n' '> kubectl logs job/image-signing -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps'
+printf '%s\n' '> ```'
+printf '%s\n' ''
+printf '%s\n' '## 12. Uninstall `image-signing`'
 printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '# Apply the Kubernetes manifest.'
-printf '%s\n' 'kubectl apply -f manifest.job.sanitized.yaml -n ${NAMESPACE}'
-printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
-printf '%s\n' 'kubectl wait --for=condition=complete job/hello-world -n ${NAMESPACE} --timeout=300s'
-printf '%s\n' '# Show logs from the Kubernetes workload.'
-printf '%s\n' 'kubectl logs job/hello-world -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps'
-printf "${RESET}"
-
-# Apply the Kubernetes manifest.
-kubectl apply -f manifest.job.sanitized.yaml -n ${NAMESPACE}
-# Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=complete job/hello-world -n ${NAMESPACE} --timeout=300s
-# Show logs from the Kubernetes workload.
-kubectl logs job/hello-world -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps
-
-printf "${VIOLET}"
-printf '%s\n' ''
-printf '%s\n' '## 10. Uninstall `hello-world`'
-printf '%s\n' ''
-printf "${RESET}"
-
-printf "${ORANGE}"
-printf '%s\n' '# Delete the Kubernetes resource if it exists.'
-printf '%s\n' 'kubectl delete job hello-world -n ${NAMESPACE}'
-printf '%s\n' '# Wait for the Kubernetes resource to reach the expected state.'
-printf '%s\n' 'kubectl wait --for=delete pod -l app=hello-world -n ${NAMESPACE} --timeout=300s'
+printf '%s\n' '# Stop the key provider port-forward.'
+printf '%s\n' 'kill ${PORT_FORWARD_PID} 2>/dev/null || true'
+printf '%s\n' '# Delete the key provider.'
+printf '%s\n' 'kubectl delete -f k8s/key-provider.yaml'
+printf '%s\n' '# Delete the Key Broker Service.'
+printf '%s\n' 'kubectl delete -f k8s/kbs.yaml'
 printf '%s\n' '# Return to the previous working directory.'
 printf '%s\n' 'popd'
 printf "${RESET}"
 
-# Delete the Kubernetes resource if it exists.
-kubectl delete job hello-world -n ${NAMESPACE}
-# Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod -l app=hello-world -n ${NAMESPACE} --timeout=300s
+# Stop the key provider port-forward.
+kill ${PORT_FORWARD_PID} 2>/dev/null || true
+# Delete the key provider.
+kubectl delete -f k8s/key-provider.yaml
+# Delete the Key Broker Service.
+kubectl delete -f k8s/kbs.yaml
 # Return to the previous working directory.
 popd
 
@@ -395,14 +510,14 @@ printf '%s\n' '## Automation'
 printf '%s\n' ''
 printf '%s\n' 'You can run this workflow with:'
 printf '%s\n' ''
-printf '%s\n' './scripts/hello-world.sh'
+printf '%s\n' './scripts/image-signing.sh'
 printf '%s\n' ''
 printf '%s\n' 'It asks for user input unless you set:'
 printf '%s\n' ''
 printf '%s\n' 'export CONFIRM_ALL_ENVIRONMENT_VARIABLES="--value-file-only"'
 printf '%s\n' ''
-printf '%s\n' 'This uses values from `hello-world/Values.yaml` and skips interactive prompts. By default, this variable is set to `--force`, which prompts for confirmation of current values.'
+printf '%s\n' 'This uses values from `image-signing/Values.yaml` and skips interactive prompts. By default, this variable is set to `--force`, which prompts for confirmation of current values.'
 printf '%s\n' ''
-printf '%s\n' 'If you update commands in this document, run `./scripts/extract-all-scripts.sh` to regenerate `./scripts/hello-world.sh`.'
+printf '%s\n' 'If you update commands in this document, run `./scripts/extract-all-scripts.sh` to regenerate `./scripts/image-signing.sh`.'
 printf "${RESET}"
 

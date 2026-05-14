@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trustee
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kbs
+  namespace: trustee
+spec:
+  type: NodePort
+  selector:
+    app: kbs
+  ports:
+    - protocol: TCP
+      port: 30080
+      targetPort: 8080
+      nodePort: 30080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kbs-config
+  namespace: trustee
+data:
+  kbs-config.toml: |
+    [http_server]
+    insecure_http = true
+    sockets = ["0.0.0.0:8080"]
+
+    [admin]
+    auth_public_key = "/kbs/kbs.pem"
+    policy_path = "/opt/confidential-containers/attestation-service/opa/allow_all.rego"
+
+    [attestation_token]
+    insecure_key = true
+
+    [attestation_service]
+    type = "coco_as_builtin"
+
+    [[plugins]]
+    name = "resource"
+    type = "LocalFs"
+    dir_path = "/opt/confidential-containers/kbs/repository"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kbs-admin-public-key
+  namespace: trustee
+type: Opaque
+stringData:
+  kbs.pem: |
+    -----BEGIN PUBLIC KEY-----
+    MCowBQYDK2VwAyEAYCicaAqZsAign7ZQ+SxpOfEBu+yrpXMLHfExOxKnrZ8=
+    -----END PUBLIC KEY-----
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kbs-policy
+  namespace: trustee
+data:
+  allow_all.rego: |
+    package policy
+
+    default allow = true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dcap-attestation-conf
+  namespace: trustee
+data:
+  sgx_default_qcnl.conf: |
+    {"collateral_service": "https://api.trustedservices.intel.com/sgx/certification/v4/"}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kbs
+  namespace: trustee
+spec:
+  selector:
+    matchLabels:
+      app: kbs
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: kbs
+    spec:
+      containers:
+        - name: kbs
+          image: ghcr.io/confidential-containers/key-broker-service:built-in-as-v0.12.0
+          ports:
+            - containerPort: 8080
+          imagePullPolicy: Always
+          command:
+            - /usr/local/bin/kbs
+            - --config-file
+            - /etc/kbs/kbs-config.toml
+          volumeMounts:
+            - name: kbs-config
+              mountPath: /etc/kbs/
+            - name: kbs-admin-public-key
+              mountPath: /kbs/
+            - name: kbs-policy
+              mountPath: /opt/confidential-containers/attestation-service/opa
+            - name: dcap-attestation-conf
+              mountPath: /etc/sgx_default_qcnl.conf
+              subPath: sgx_default_qcnl.conf
+      volumes:
+        - name: kbs-config
+          configMap:
+            name: kbs-config
+        - name: kbs-admin-public-key
+          secret:
+            secretName: kbs-admin-public-key
+        - name: kbs-policy
+          configMap:
+            name: kbs-policy
+        - name: dcap-attestation-conf
+          configMap:
+            name: dcap-attestation-conf
