@@ -30,7 +30,7 @@ spec:
         - name: ${IMAGE_PULL_SECRET_NAME}
       containers:
         - name: redis
-          image: redis:7-alpine
+          image: redis:7-bookworm
           imagePullPolicy: Always
           command: ["/usr/local/bin/redis-server", "/etc/redis/redis.conf"]
           ports:
