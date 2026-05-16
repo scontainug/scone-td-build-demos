@@ -15,7 +15,7 @@ jobs:
   run-all-examples:
     name: Run all examples in SGX and CVM mode
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: self-hosted
+    runs-on: [self-hosted, sgx-cvm-sim]
     container:
       image: registry.scontain.com/workshop/scone
       credentials:
