@@ -323,6 +323,12 @@ tplenv --file scone.template.yaml --create-values-file --output scone.yaml --ind
 rm flask-redis-demo.json || true
 # Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y scone.yaml
+# Publish the Redis SCONE image under the registry name used by the manifest.
+if grep -q 'image: redis:7-alpine-scone' manifest.prod.sanitized.yaml; then
+  docker tag redis:7-alpine-scone "${IMAGE_NAME}-redis-scone"
+  docker push "${IMAGE_NAME}-redis-scone"
+  sed -i "s|image: redis:7-alpine-scone|image: ${IMAGE_NAME}-redis-scone|g" manifest.prod.sanitized.yaml
+fi
 ```
 
 ---

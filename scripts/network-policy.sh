@@ -187,7 +187,7 @@ printf "${ORANGE}"
 printf '%s\n' '# Render the template with the selected values.'
 printf '%s\n' 'tplenv --file "./manifest.template.yaml" --output "./manifest.yaml"'
 printf '%s\n' '# Render the template with the selected values.'
-printf '%s\n' 'tplenv --file "./scone.template.yaml" --output "./scone.yaml"'
+printf '%s\n' 'tplenv --file "./scone.template.yaml" --output "./scone.yaml" --indent'
 printf '%s\n' '# Generate the confidential image and sanitized manifest from the SCONE configuration.'
 printf '%s\n' 'scone-td-build from -y ./scone.yaml'
 printf "${RESET}"
@@ -195,7 +195,7 @@ printf "${RESET}"
 # Render the template with the selected values.
 tplenv --file "./manifest.template.yaml" --output "./manifest.yaml"
 # Render the template with the selected values.
-tplenv --file "./scone.template.yaml" --output "./scone.yaml"
+tplenv --file "./scone.template.yaml" --output "./scone.yaml" --indent
 # Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y ./scone.yaml
 

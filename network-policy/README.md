@@ -68,7 +68,7 @@ Create SCONE config files from templates, then run `scone-td-build`:
 # Render the template with the selected values.
 tplenv --file "./manifest.template.yaml" --output "./manifest.yaml"
 # Render the template with the selected values.
-tplenv --file "./scone.template.yaml" --output "./scone.yaml"
+tplenv --file "./scone.template.yaml" --output "./scone.yaml" --indent
 # Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y ./scone.yaml
 ```
