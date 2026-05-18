@@ -150,7 +150,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-rm -f storage.json || true
+rm -f storage.json || true
 EOF
 )"
 
@@ -171,6 +171,7 @@ printf '%s\n' '- `$CAS_NAMESPACE` - CAS Kubernetes namespace (for example, `defa
 printf '%s\n' '- `$CAS_NAME` - CAS Kubernetes name (for example, `cas`)'
 printf '%s\n' '- `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX'
 printf '%s\n' '- `$SCONE_ENCLAVE` - In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods'
+printf '%s\n' '- `$NAMESPACE` - Kubernetes namespace where the demo runs (default: `default`)'
 printf '%s\n' ''
 printf '%s\n' 'Defaults are stored in `Values.yaml`. We use [`tplenv`](https://github.com/scontainug/tplenv) to confirm or override values:'
 printf '%s\n' ''
@@ -182,6 +183,19 @@ EOF
 )"
 pe "$(cat <<'EOF'
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+# Create the Kubernetes namespace if it does not already exist.
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 EOF
 )"
 
@@ -257,7 +271,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -293,7 +307,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -312,7 +326,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete job hello-world || echo "ok - no previous job that we need to delete"
+kubectl delete job hello-world -n ${NAMESPACE} || echo "ok - no previous job that we need to delete"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -320,7 +334,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifest.job.yaml
+kubectl apply -f manifest.job.yaml -n ${NAMESPACE}
 EOF
 )"
 
@@ -335,7 +349,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=condition=complete job/hello-world --timeout=300s
+kubectl wait --for=condition=complete job/hello-world -n ${NAMESPACE} --timeout=300s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -343,7 +357,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps
+kubectl logs job/hello-world -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps
 EOF
 )"
 
@@ -358,7 +372,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete job hello-world
+kubectl delete job hello-world -n ${NAMESPACE}
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -366,7 +380,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=delete pod -l app=hello-world --timeout=300s
+kubectl wait --for=delete pod -l app=hello-world -n ${NAMESPACE} --timeout=300s
 EOF
 )"
 
@@ -421,7 +435,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml ${CVM_MODE} ${SCONE_ENCLAVE}
+scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml ${CVM_MODE} ${SCONE_ENCLAVE}
 EOF
 )"
 
@@ -436,7 +450,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifest.job.sanitized.yaml
+kubectl apply -f manifest.job.sanitized.yaml -n ${NAMESPACE}
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -444,7 +458,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=condition=complete job/hello-world --timeout=300s
+kubectl wait --for=condition=complete job/hello-world -n ${NAMESPACE} --timeout=300s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -452,7 +466,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps
+kubectl logs job/hello-world -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps
 EOF
 )"
 
@@ -467,7 +481,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete job hello-world
+kubectl delete job hello-world -n ${NAMESPACE}
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -475,7 +489,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=delete pod -l app=hello-world --timeout=300s
+kubectl wait --for=delete pod -l app=hello-world -n ${NAMESPACE} --timeout=300s
 EOF
 )"
 pe "$(cat <<'EOF'

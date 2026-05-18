@@ -25,7 +25,7 @@ We assume you start in `scone-td-build-demos`:
 # Enter `hello-world` and remember the previous directory.
 pushd hello-world
 # Remove `storage.json` if it exists.
-rm -f storage.json || true
+rm -f storage.json || true
 ```
 
 This example uses the following variables.
@@ -43,12 +43,18 @@ For the confidential deployment:
 - `$CAS_NAME` - CAS Kubernetes name (for example, `cas`)
 - `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX
 - `$SCONE_ENCLAVE` - In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods
+- `$NAMESPACE` - Kubernetes namespace where the demo runs (default: `default`)
 
 Defaults are stored in `Values.yaml`. We use [`tplenv`](https://github.com/scontainug/tplenv) to confirm or override values:
 
 ```bash
 # Load environment variables from the tplenv definition file.
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
+```
+
+```bash
+# Create the Kubernetes namespace if it does not already exist.
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 ```
 
 Generate the job manifest with the selected image and pull-secret values:
@@ -86,7 +92,7 @@ If the pull secret does not exist yet, create it using registry credentials.
 
 ```bash
 # Check whether the pull secret already exists.
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
@@ -95,7 +101,7 @@ else
   # Load environment variables from the tplenv definition file.
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
   # Create the Docker registry pull secret.
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 ```
 
@@ -103,27 +109,27 @@ fi
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete job hello-world || echo "ok - no previous job that we need to delete"
+kubectl delete job hello-world -n ${NAMESPACE} || echo "ok - no previous job that we need to delete"
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.job.yaml
+kubectl apply -f manifest.job.yaml -n ${NAMESPACE}
 ```
 
 Wait for completion and stream logs:
 
 ```bash
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=complete job/hello-world --timeout=300s
+kubectl wait --for=condition=complete job/hello-world -n ${NAMESPACE} --timeout=300s
 # Show logs from the Kubernetes workload.
-kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps
+kubectl logs job/hello-world -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps
 ```
 
 Clean up:
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete job hello-world
+kubectl delete job hello-world -n ${NAMESPACE}
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod -l app=hello-world --timeout=300s
+kubectl wait --for=delete pod -l app=hello-world -n ${NAMESPACE} --timeout=300s
 ```
 
 ## 6. Attest SCONE CAS
@@ -154,27 +160,27 @@ Convert the native manifest into a sanitized confidential manifest:
 
 ```bash
 # Convert the native manifest into a confidential manifest.
-scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml ${CVM_MODE} ${SCONE_ENCLAVE}
+scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml ${CVM_MODE} ${SCONE_ENCLAVE}
 ```
 
 ## 9. Deploy the Confidential Manifest
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.job.sanitized.yaml
+kubectl apply -f manifest.job.sanitized.yaml -n ${NAMESPACE}
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=complete job/hello-world --timeout=300s
+kubectl wait --for=condition=complete job/hello-world -n ${NAMESPACE} --timeout=300s
 # Show logs from the Kubernetes workload.
-kubectl logs job/hello-world --follow --pod-running-timeout=2m --timestamps
+kubectl logs job/hello-world -n ${NAMESPACE} --follow --pod-running-timeout=2m --timestamps
 ```
 
 ## 10. Uninstall `hello-world`
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete job hello-world
+kubectl delete job hello-world -n ${NAMESPACE}
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod -l app=hello-world --timeout=300s
+kubectl wait --for=delete pod -l app=hello-world -n ${NAMESPACE} --timeout=300s
 # Return to the previous working directory.
 popd
 ```
