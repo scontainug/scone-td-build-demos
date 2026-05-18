@@ -185,6 +185,7 @@ boolean_mode_files=(
   "${repo_root}/go-args-env-file/Values.yaml"
   "${repo_root}/flask-redis/Values.yaml"
   "${repo_root}/flask-redis-netshield/Values.yaml"
+  "${repo_root}/java-args-env-file/Values.yaml"
   "${repo_root}/software-updates/Values.yaml"
 )
 
