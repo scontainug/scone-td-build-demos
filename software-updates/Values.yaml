@@ -1,0 +1,18 @@
+environment:
+  IMAGE_NAME_V1: registry.scontain.com/k8s-scone-images/software-updates:v1
+  IMAGE_NAME_V2: registry.scontain.com/k8s-scone-images/software-updates:v2
+  DESTINATION_IMAGE_NAME_V1: registry.scontain.com/k8s-scone-images/software-updates:v1-scone
+  DESTINATION_IMAGE_NAME_V2: registry.scontain.com/k8s-scone-images/software-updates:v2-scone
+  REGISTRY: registry.scontain.com
+  IMAGE_PULL_SECRET_NAME: sconeapps
+  SCONE_RUNTIME_VERSION: 6.1.0-rc.0
+  CAS_NAMESPACE: default
+  CAS_NAME: cas
+  CVM_MODE: 'false'
+  SCONE_ENCLAVE: 'false'
+  NAMESPACE: default
+  API_USER: myself
+  SIGNER: |-
+    -----BEGIN PUBLIC KEY-----
+    MCowBQYDK2VwAyEAjKxqirtu/hSYLcI2zpPq7Xaq7cfBQ2qtbl5N2Gb/Hdc=
+    -----END PUBLIC KEY-----

@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-hello-user
+  namespace: ${NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: python-hello-user
+  template:
+    metadata:
+      labels:
+        app: python-hello-user
+    spec:
+      imagePullSecrets:
+        - name: ${IMAGE_PULL_SECRET_NAME}
+      containers:
+        - name: python-hello-user
+          image: ${IMAGE_NAME_V2}
+          imagePullPolicy: Always
+          env:
+            - name: API_USER
+              value: ${API_USER}
+            - name: API_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-credentials
+                  key: API_PASSWORD
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "50m"
+            limits:
+              memory: "760Mi"
+              cpu: "500m"

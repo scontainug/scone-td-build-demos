@@ -1,0 +1,44 @@
+apiVersion: scone.cloud/v1
+kind: Register
+metadata:
+  name: software-updates-demo
+spec:
+  protected_image: ${IMAGE_NAME_V1}
+  unprotected_image: ${IMAGE_NAME_V1}
+  destination_image: ${DESTINATION_IMAGE_NAME_V1}
+  enforce: ["/usr/local/bin/python3"]
+  push_scone_image: true
+  version: ${SCONE_RUNTIME_VERSION}
+  cvm: ${CVM_MODE}
+  manifest_env:
+    - {name: SCONE_VERSION, value: "1"}
+    - {name: SCONE_SYSLIBS, value: "1"}
+    - {name: SCONE_PRODUCTION, value: "0"}
+    - {name: SCONE_HEAP, value: "760M"}
+    - {name: SCONE_ALLOW_DLOPEN, value: "2"}
+---
+apiVersion: scone.cloud/v1
+kind: Apply
+metadata:
+  name: software-updates-demo
+  namespace: ${SESSION_NAMESPACE}
+spec:
+  file:
+    - "k8s/scone-secret.yaml"
+    - "k8s/manifest.v1.yaml"
+  output_manifest_file: "manifest.prod.sanitized.yaml"
+  output_session_file: "manifest.prod.session.yaml"
+  cas_address:
+    address: ${CAS_NAME}.${CAS_NAMESPACE}
+  session_env:
+    - {name: SCONE_VERSION, value: "1"}
+  manifest_env:
+    - {name: SCONE_VERSION, value: "1"}
+    - {name: SCONE_SYSLIBS, value: "1"}
+    - {name: SCONE_PRODUCTION, value: "0"}
+    - {name: SCONE_HEAP, value: "760M"}
+    - {name: SCONE_ALLOW_DLOPEN, value: "2"}
+  permissive: true
+  spol: true
+  cvm: ${CVM_MODE}
+  scone_enclave: ${SCONE_ENCLAVE}
