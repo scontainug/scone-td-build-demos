@@ -337,7 +337,8 @@ rm flask-redis-demo.json || true
 scone-td-build from -y scone.yaml
 # Use the registry-backed Redis SCONE image that the Register step pushed.
 if grep -q 'image: redis:7-bookworm-scone' manifest.prod.sanitized.yaml; then
-  sed -i "s|image: redis:7-bookworm-scone|image: ${IMAGE_NAME}-redis-scone|g" manifest.prod.sanitized.yaml
+  sed -i.bak "s|image: redis:7-bookworm-scone|image: ${IMAGE_NAME}-redis-scone|g" manifest.prod.sanitized.yaml
+  rm -f manifest.prod.sanitized.yaml.bak
 fi
 ```
 

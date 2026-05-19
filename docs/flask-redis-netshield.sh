@@ -886,7 +886,11 @@ if grep -q 'image: redis:7-bookworm-scone' manifest.prod.sanitized.yaml; then
 EOF
 )"
 pe "$(cat <<'EOF'
-  sed -i "s|image: redis:7-bookworm-scone|image: ${IMAGE_NAME}-redis-scone|g" manifest.prod.sanitized.yaml
+  sed -i.bak "s|image: redis:7-bookworm-scone|image: ${IMAGE_NAME}-redis-scone|g" manifest.prod.sanitized.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
+  rm -f manifest.prod.sanitized.yaml.bak
 EOF
 )"
 pe "$(cat <<'EOF'
