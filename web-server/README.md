@@ -72,17 +72,27 @@ Defaults are stored in `Values.yaml`. `tplenv` asks whether to keep them and set
 - `$CAS_NAME` - CAS name (for example, `cas`)
 - `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX
 - `$SCONE_ENCLAVE` - In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods
+- `$NAMESPACE` - Kubernetes namespace where the demo runs (default: `default`)
 
 ```bash
 # Load environment variables from the tplenv definition file.
 eval $(tplenv --file environment-variables.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
 ```
 
-Attest CAS before sending encrypted policies:
+Create the demo namespace if it does not already exist:
+
+```bash
+# Create the Kubernetes namespace if it does not already exist.
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
+```
+
+Attest CAS before sending encrypted policies. The kubectl path covers in-cluster CAS; if it fails (typical when `${CAS_NAME}.${CAS_NAMESPACE}` resolves to an external CAS like `scone-cas.cf`), the second branch attests the public CAS directly.
 
 ```bash
 # Attest the CAS instance before sending encrypted policies.
-kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is OK if you first attested using *scone cas attest ..."
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S \
+    || scone cas attest ${CAS_NAME}.${CAS_NAMESPACE} -C -G -S \
+        --only_for_testing-debug --only_for_testing-ignore-signer --only_for_testing-trust-any
 ```
 
 If attestation fails, review the output for detected issues and suggested tolerance flags.
@@ -103,12 +113,12 @@ If the pull secret does not exist yet, create it using registry credentials.
 - `$REGISTRY_TOKEN` - Registry pull token (see <https://sconedocs.github.io/registry/>)
 
 ```bash
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
   echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 ```
 
@@ -149,7 +159,8 @@ scone-td-build register \
   --push \
   -s ./storage.json \
   --enforce /app/web-server \
-  --version ${SCONE_RUNTIME_VERSION}
+  --version ${SCONE_RUNTIME_VERSION} \
+  ${CVM_MODE}
 ```
 
 ## 6. Test the Native Manifest (Optional)
@@ -158,9 +169,9 @@ Clean up previous runs first:
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete deployment web-server || echo "ok - no web-server deployment yet"
+kubectl delete deployment web-server -n ${NAMESPACE} || echo "ok - no web-server deployment yet"
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod -l app=web-server --timeout=240s || echo "ok - no web-server deployment yet"
+kubectl wait --for=delete pod -l app=web-server -n ${NAMESPACE} --timeout=240s || echo "ok - no web-server deployment yet"
 # Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-8000.pid) || true
 ```
@@ -169,11 +180,11 @@ Deploy and test:
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.yaml
+kubectl apply -f manifest.yaml -n ${NAMESPACE}
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=Ready pod -l app="web-server" --timeout=240s
+kubectl wait --for=condition=Ready pod -l app="web-server" -n ${NAMESPACE} --timeout=240s
 # Start a local port-forward to the Kubernetes workload.
-kubectl port-forward deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
+kubectl port-forward deployment/web-server 8000:8000 -n ${NAMESPACE} & echo $! > /tmp/pf-8000.pid
 
 # Retry the wrapped command until it succeeds or reaches the retry limit.
 retry-spinner -- curl http://localhost:8000/env/MY_POD_IP
@@ -181,9 +192,9 @@ retry-spinner -- curl http://localhost:8000/env/MY_POD_IP
 ./test.sh
 
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifest.yaml
+kubectl delete -f manifest.yaml -n ${NAMESPACE}
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=delete pod -l app=web-server --timeout=240s
+kubectl wait --for=delete pod -l app=web-server -n ${NAMESPACE} --timeout=240s
 # Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-8000.pid) || true
 # Remove `/tmp/pf-8000.pid` if it exists.
@@ -202,17 +213,19 @@ scone-td-build apply \
   -s ./storage.json \
   --spol \
   --manifest-env SCONE_SYSLIBS=1 \
+  --manifest-env SCONE_PRODUCTION=0 \
   --manifest-env SCONE_VERSION=1 \
   --session-env SCONE_VERSION=1 \
   --output-manifest-file manifest.sanitized.yaml \
-  --version ${SCONE_RUNTIME_VERSION} -p
+  --version ${SCONE_RUNTIME_VERSION} -p \
+  ${CVM_MODE} ${SCONE_ENCLAVE}
 ```
 
 ## 8. Deploy the Confidential Manifest
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifest.sanitized.yaml
+kubectl apply -f manifest.sanitized.yaml -n ${NAMESPACE}
 ```
 
 For the next step, you need a Kubernetes cluster with SGX resources and a running LAS.
@@ -221,12 +234,12 @@ For the next step, you need a Kubernetes cluster with SGX resources and a runnin
 
 ```bash
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=Ready pod -l app="web-server" --timeout=240s
+kubectl wait --for=condition=Ready pod -l app="web-server" -n ${NAMESPACE} --timeout=240s
 # A ready pod does not always mean the port is immediately available.
 # Wait briefly for the service to become reachable.
 sleep 20
 # Start a local port-forward to the Kubernetes workload.
-kubectl port-forward deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
+kubectl port-forward deployment/web-server 8000:8000 -n ${NAMESPACE} & echo $! > /tmp/pf-8000.pid
 ```
 
 Send test requests:
@@ -244,7 +257,7 @@ retry-spinner -- curl http://localhost:8000/gen
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifest.sanitized.yaml
+kubectl delete -f manifest.sanitized.yaml -n ${NAMESPACE}
 # Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-8000.pid) || true
 # Remove `/tmp/pf-8000.pid` if it exists.

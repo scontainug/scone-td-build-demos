@@ -60,6 +60,7 @@ Default values are stored in `Values.yaml`. `tplenv` asks whether to keep the de
 - `$CAS_NAME` — CAS name (for example, `cas`)
 - `$CVM_MODE` — Set to `--cvm` for CVM mode, otherwise leave empty for SGX
 - `$SCONE_ENCLAVE` — In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods
+- `$NAMESPACE` — Kubernetes namespace where the demo runs (default: `default`)
 
 Set `SIGNER` for policy signing:
 
@@ -73,6 +74,13 @@ Load the full variable set from `environment-variables.md`:
 ```bash
 # Load environment variables from the tplenv definition file.
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
+```
+
+Create the demo namespace if it does not already exist:
+
+```bash
+# Create the Kubernetes namespace if it does not already exist.
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 ```
 
 ---
@@ -138,12 +146,12 @@ If you need a pull secret for native and confidential images, create it when mis
 
 ```bash
 # Check whether the pull secret already exists.
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
   # Create the Docker registry pull secret.
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" \
+  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" \
     --docker-server=$REGISTRY \
     --docker-username=$REGISTRY_USER \
     --docker-password=$REGISTRY_TOKEN
@@ -158,11 +166,11 @@ Apply the manifest, wait for the job to complete, and inspect its logs to confir
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifests/manifest.yaml
+kubectl apply -f manifests/manifest.yaml -n ${NAMESPACE}
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=complete job/go-args-env-file --timeout=240s
+kubectl wait --for=condition=complete job/go-args-env-file -n ${NAMESPACE} --timeout=240s
 # Show logs from the Kubernetes workload.
-kubectl logs job/go-args-env-file
+kubectl logs job/go-args-env-file -n ${NAMESPACE}
 ```
 
 Your container should print the command-line arguments, all environment variables, the contents of `/config/configs.yaml`, and `/config/secrets`.
@@ -171,7 +179,7 @@ Clean up the native deployment before moving on:
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifests/manifest.yaml
+kubectl delete -f manifests/manifest.yaml -n ${NAMESPACE}
 ```
 
 The manifest mounts:
@@ -182,7 +190,16 @@ The manifest mounts:
 
 ## 8. Prepare and Apply the SCONE Manifest
 
-Build the confidential image and generate the SCONE session from `manifests/scone.yaml`:
+First, attest the CAS so the local SCONE CLI has the correct session encryption key. The kubectl path covers an in-cluster CAS; if it fails (typical when `${CAS_NAME}.${CAS_NAMESPACE}` resolves to an external CAS like `scone-cas.cf`), the second branch attests the public CAS directly.
+
+```bash
+# Attest the CAS instance before sending encrypted policies.
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S \
+    || scone cas attest ${CAS_NAME}.${CAS_NAMESPACE} -C -G -S \
+        --only_for_testing-debug --only_for_testing-ignore-signer --only_for_testing-trust-any
+```
+
+Then build the confidential image and generate the SCONE session from `manifests/scone.yaml`:
 
 ```bash
 # Generate the confidential image and sanitized manifest from the SCONE configuration.
@@ -201,9 +218,9 @@ This command:
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifests/manifest.prod.sanitized.yaml
+kubectl apply -f manifests/manifest.prod.sanitized.yaml -n ${NAMESPACE}
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=complete job/go-args-env-file --timeout=300s
+kubectl wait --for=condition=complete job/go-args-env-file -n ${NAMESPACE} --timeout=300s
 ```
 
 ---
@@ -212,7 +229,7 @@ kubectl wait --for=condition=complete job/go-args-env-file --timeout=300s
 
 ```bash
 # Show logs from the Kubernetes workload.
-kubectl logs job/go-args-env-file
+kubectl logs job/go-args-env-file -n ${NAMESPACE}
 ```
 
 ---
@@ -221,7 +238,7 @@ kubectl logs job/go-args-env-file
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifests/manifest.prod.sanitized.yaml
+kubectl delete -f manifests/manifest.prod.sanitized.yaml -n ${NAMESPACE}
 ```
 
 ---

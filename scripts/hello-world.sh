@@ -212,32 +212,26 @@ printf '%s\n' ''
 printf "${RESET}"
 
 printf "${ORANGE}"
-printf '%s\n' '# Check whether the pull secret already exists.'
-printf '%s\n' 'if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then'
-printf '%s\n' '  # Print a status message.'
-printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"'
-printf '%s\n' 'else'
-printf '%s\n' '  # Print a status message.'
-printf '%s\n' '  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."'
-printf '%s\n' '  # Load environment variables from the tplenv definition file.'
-printf '%s\n' '  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-})'
-printf '%s\n' '  # Create the Docker registry pull secret.'
-printf '%s\n' '  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN'
-printf '%s\n' 'fi'
+printf '%s\n' '# Load registry credentials.'
+printf '%s\n' 'eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-})'
+printf '%s\n' '# Create or refresh the Docker registry pull secret idempotently.'
+printf '%s\n' 'kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" \'
+printf '%s\n' '  --docker-server="$REGISTRY" \'
+printf '%s\n' '  --docker-username="$REGISTRY_USER" \'
+printf '%s\n' '  --docker-password="$REGISTRY_TOKEN" \'
+printf '%s\n' '  --dry-run=client -o yaml \'
+printf '%s\n' '  | kubectl apply -n "${NAMESPACE}" -f -'
 printf "${RESET}"
 
-# Check whether the pull secret already exists.
-if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
-  # Print a status message.
-  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
-else
-  # Print a status message.
-  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
-  # Load environment variables from the tplenv definition file.
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-})
-  # Create the Docker registry pull secret.
-  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
-fi
+# Load registry credentials.
+eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-})
+# Create or refresh the Docker registry pull secret idempotently.
+kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" \
+  --docker-server="$REGISTRY" \
+  --docker-username="$REGISTRY_USER" \
+  --docker-password="$REGISTRY_TOKEN" \
+  --dry-run=client -o yaml \
+  | kubectl apply -n "${NAMESPACE}" -f -
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -339,11 +333,11 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Convert the native manifest into a confidential manifest.'
-printf '%s\n' 'scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml ${CVM_MODE} ${SCONE_ENCLAVE}'
+printf '%s\n' 'scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE} ${SCONE_ENCLAVE}'
 printf "${RESET}"
 
 # Convert the native manifest into a confidential manifest.
-scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml ${CVM_MODE} ${SCONE_ENCLAVE}
+scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE} ${SCONE_ENCLAVE}
 
 printf "${VIOLET}"
 printf '%s\n' ''

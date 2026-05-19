@@ -200,6 +200,7 @@ printf '%s\n' '- `$CAS_NAMESPACE` - CAS namespace (for example, `default`)'
 printf '%s\n' '- `$CAS_NAME` - CAS name (for example, `cas`)'
 printf '%s\n' '- `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX'
 printf '%s\n' '- `$SCONE_ENCLAVE` - In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods'
+printf '%s\n' '- `$NAMESPACE` - Kubernetes namespace where the demo runs (default: `default`)'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -214,7 +215,22 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
-printf '%s\n' 'Attest CAS before sending encrypted policies:'
+printf '%s\n' 'Create the demo namespace if it does not already exist:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+# Create the Kubernetes namespace if it does not already exist.
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'Attest CAS before sending encrypted policies. The kubectl path covers in-cluster CAS; if it fails (typical when `${CAS_NAME}.${CAS_NAMESPACE}` resolves to an external CAS like `scone-cas.cf`), the second branch attests the public CAS directly.'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -223,7 +239,9 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S || echo "Attestation failed: This is OK if you first attested using *scone cas attest ..."
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S \
+    || scone cas attest ${CAS_NAME}.${CAS_NAMESPACE} -C -G -S \
+        --only_for_testing-debug --only_for_testing-ignore-signer --only_for_testing-trust-any
 EOF
 )"
 
@@ -257,7 +275,7 @@ printf '%s\n' ''
 printf "%b" "$RESET"
 
 pe "$(cat <<'EOF'
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -277,7 +295,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -375,7 +393,8 @@ scone-td-build register \
   --push \
   -s ./storage.json \
   --enforce /app/web-server \
-  --version ${SCONE_RUNTIME_VERSION}
+  --version ${SCONE_RUNTIME_VERSION} \
+  ${CVM_MODE}
 EOF
 )"
 
@@ -392,7 +411,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete deployment web-server || echo "ok - no web-server deployment yet"
+kubectl delete deployment web-server -n ${NAMESPACE} || echo "ok - no web-server deployment yet"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -400,7 +419,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=delete pod -l app=web-server --timeout=240s || echo "ok - no web-server deployment yet"
+kubectl wait --for=delete pod -l app=web-server -n ${NAMESPACE} --timeout=240s || echo "ok - no web-server deployment yet"
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -423,7 +442,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifest.yaml
+kubectl apply -f manifest.yaml -n ${NAMESPACE}
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -431,7 +450,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=condition=Ready pod -l app="web-server" --timeout=240s
+kubectl wait --for=condition=Ready pod -l app="web-server" -n ${NAMESPACE} --timeout=240s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -439,7 +458,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl port-forward deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
+kubectl port-forward deployment/web-server 8000:8000 -n ${NAMESPACE} & echo $! > /tmp/pf-8000.pid
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -471,7 +490,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifest.yaml
+kubectl delete -f manifest.yaml -n ${NAMESPACE}
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -479,7 +498,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=delete pod -l app=web-server --timeout=240s
+kubectl wait --for=delete pod -l app=web-server -n ${NAMESPACE} --timeout=240s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -503,7 +522,7 @@ printf "%b" "$LILAC"
 printf '%s\n' ''
 printf '%s\n' '## 7. Convert the Manifest'
 printf '%s\n' ''
-printf '%s\n' 'If you want to inspect registration details, see [register-image](../../../register-image.md).'
+printf '%s\n' 'If you want to inspect registration details, see [register-image](https://github.com/scontain/k8s-scone/blob/main/register-image.md).'
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -518,10 +537,12 @@ scone-td-build apply \
   -s ./storage.json \
   --spol \
   --manifest-env SCONE_SYSLIBS=1 \
+  --manifest-env SCONE_PRODUCTION=0 \
   --manifest-env SCONE_VERSION=1 \
   --session-env SCONE_VERSION=1 \
   --output-manifest-file manifest.sanitized.yaml \
-  --version ${SCONE_RUNTIME_VERSION} -p
+  --version ${SCONE_RUNTIME_VERSION} -p \
+  ${CVM_MODE} ${SCONE_ENCLAVE}
 EOF
 )"
 
@@ -536,7 +557,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifest.sanitized.yaml
+kubectl apply -f manifest.sanitized.yaml -n ${NAMESPACE}
 EOF
 )"
 
@@ -553,7 +574,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=condition=Ready pod -l app="web-server" --timeout=240s
+kubectl wait --for=condition=Ready pod -l app="web-server" -n ${NAMESPACE} --timeout=240s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -573,7 +594,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl port-forward deployment/web-server 8000:8000 & echo $! > /tmp/pf-8000.pid
+kubectl port-forward deployment/web-server 8000:8000 -n ${NAMESPACE} & echo $! > /tmp/pf-8000.pid
 EOF
 )"
 
@@ -619,7 +640,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifest.sanitized.yaml
+kubectl delete -f manifest.sanitized.yaml -n ${NAMESPACE}
 EOF
 )"
 pe "$(cat <<'EOF'

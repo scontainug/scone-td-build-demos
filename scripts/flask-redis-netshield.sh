@@ -97,7 +97,7 @@ printf '%s\n' '## Prerequisites'
 printf '%s\n' ''
 printf '%s\n' '- `kubectl` configured for your cluster'
 printf '%s\n' '- `docker` with access to a registry your cluster can pull from'
-printf '%s\n' '- `openssl`, `tplenv`, and `envsubst` available in your shell'
+printf '%s\n' '- `openssl` and `tplenv` available in your shell'
 printf '%s\n' '- `scone-td-build` binary'
 printf '%s\n' ''
 printf '%s\n' '---'
@@ -426,9 +426,9 @@ printf '%s\n' 'kubectl rollout status deployment/flask-api -n ${NAMESPACE} --wat
 printf '%s\n' ''
 printf '%s\n' '# Check logs'
 printf '%s\n' '# Show logs from the Kubernetes workload.'
-printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50'
+printf '%s\n' 'kubectl logs -n ${NAMESPACE} deployment/flask-api --tail=50'
 printf '%s\n' '# Show logs from the Kubernetes workload.'
-printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=redis --tail=20'
+printf '%s\n' 'kubectl logs -n ${NAMESPACE} deployment/redis --tail=20'
 printf "${RESET}"
 
 # Watch all resources come up
@@ -445,9 +445,9 @@ kubectl rollout status deployment/flask-api -n ${NAMESPACE} --watch=true  --time
 
 # Check logs
 # Show logs from the Kubernetes workload.
-kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
+kubectl logs -n ${NAMESPACE} deployment/flask-api --tail=50
 # Show logs from the Kubernetes workload.
-kubectl logs -n ${NAMESPACE} -l app=redis --tail=20
+kubectl logs -n ${NAMESPACE} deployment/redis --tail=20
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -626,6 +626,11 @@ printf '%s\n' '# Remove `flask-redis-demo.json` if it exists.'
 printf '%s\n' 'rm flask-redis-demo.json || true'
 printf '%s\n' '# Generate the confidential image and sanitized manifest from the SCONE configuration.'
 printf '%s\n' 'scone-td-build from -y scone.yaml'
+printf '%s\n' '# Use the registry-backed Redis SCONE image that the Register step pushed.'
+printf '%s\n' 'if grep -q '\''image: redis:7-bookworm-scone'\'' manifest.prod.sanitized.yaml; then'
+printf '%s\n' '  sed -i.bak "s|image: redis:7-bookworm-scone|image: ${IMAGE_NAME}-redis-scone|g" manifest.prod.sanitized.yaml'
+printf '%s\n' '  rm -f manifest.prod.sanitized.yaml.bak'
+printf '%s\n' 'fi'
 printf "${RESET}"
 
 # Render the template with the selected values.
@@ -634,6 +639,11 @@ tplenv --file scone.template.yaml --create-values-file --output scone.yaml --ind
 rm flask-redis-demo.json || true
 # Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y scone.yaml
+# Use the registry-backed Redis SCONE image that the Register step pushed.
+if grep -q 'image: redis:7-bookworm-scone' manifest.prod.sanitized.yaml; then
+  sed -i.bak "s|image: redis:7-bookworm-scone|image: ${IMAGE_NAME}-redis-scone|g" manifest.prod.sanitized.yaml
+  rm -f manifest.prod.sanitized.yaml.bak
+fi
 
 printf "${VIOLET}"
 printf '%s\n' ''
@@ -676,9 +686,9 @@ printf '%s\n' 'kubectl rollout status deployment/flask-api -n ${NAMESPACE} --tim
 printf '%s\n' ''
 printf '%s\n' '# Check logs'
 printf '%s\n' '# Show logs from the Kubernetes workload.'
-printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50'
+printf '%s\n' 'kubectl logs -n ${NAMESPACE} deployment/flask-api --tail=50'
 printf '%s\n' '# Show logs from the Kubernetes workload.'
-printf '%s\n' 'kubectl logs -n ${NAMESPACE} -l app=redis --tail=20'
+printf '%s\n' 'kubectl logs -n ${NAMESPACE} deployment/redis --tail=20'
 printf "${RESET}"
 
 # Watch all resources come up
@@ -695,9 +705,9 @@ kubectl rollout status deployment/flask-api -n ${NAMESPACE} --timeout=300s
 
 # Check logs
 # Show logs from the Kubernetes workload.
-kubectl logs -n ${NAMESPACE} -l app=flask-api --tail=50
+kubectl logs -n ${NAMESPACE} deployment/flask-api --tail=50
 # Show logs from the Kubernetes workload.
-kubectl logs -n ${NAMESPACE} -l app=redis --tail=20
+kubectl logs -n ${NAMESPACE} deployment/redis --tail=20
 
 printf "${VIOLET}"
 printf '%s\n' ''

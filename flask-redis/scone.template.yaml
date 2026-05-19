@@ -3,8 +3,8 @@ kind: Register
 metadata:
   name: flask-redis-demo
 spec:
-  protected_image: redis:7-alpine
-  unprotected_image: redis:7-alpine
+  protected_image: redis:7-bookworm
+  unprotected_image: redis:7-bookworm
   destination_image: ${IMAGE_NAME}-redis-scone
   enforce: ["/usr/local/bin/redis-server"]
   push_scone_image: true
@@ -59,6 +59,7 @@ spec:
   spol: true
   cvm: ${CVM_MODE}
   scone_enclave: ${SCONE_ENCLAVE}
+  version: ${SCONE_RUNTIME_VERSION}
   access_policy:
     read:
       - ANY

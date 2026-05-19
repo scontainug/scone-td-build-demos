@@ -183,6 +183,21 @@ EOF
 
 printf "%b" "$LILAC"
 printf '%s\n' ''
+printf '%s\n' 'Create the demo namespace if it does not already exist:'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+# Create the Kubernetes namespace if it does not already exist.
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
 printf '%s\n' 'Build and push native images:'
 printf '%s\n' ''
 printf "%b" "$RESET"
@@ -245,7 +260,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-tplenv --file "./scone.template.yaml" --output "./scone.yaml"
+tplenv --file "./scone.template.yaml" --output "./scone.yaml" --indent
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -291,7 +306,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f "manifest.prod.sanitized.yaml"
+kubectl apply -f "manifest.prod.sanitized.yaml" -n ${NAMESPACE}
 EOF
 )"
 
@@ -310,7 +325,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=condition=Ready pod -l app="server" --timeout=300s
+kubectl wait --for=condition=Ready pod -l app="server" -n ${NAMESPACE} --timeout=300s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -318,7 +333,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl wait --for=condition=Ready pod -l app="client" --timeout=300s
+kubectl wait --for=condition=Ready pod -l app="client" -n ${NAMESPACE} --timeout=300s
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -342,7 +357,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl port-forward svc/barad-dur 3000 & echo $! > /tmp/pf-3000.pid
+kubectl port-forward svc/barad-dur 3000 -n ${NAMESPACE} & echo $! > /tmp/pf-3000.pid
 EOF
 )"
 
@@ -386,7 +401,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifest.prod.sanitized.yaml
+kubectl delete -f manifest.prod.sanitized.yaml -n ${NAMESPACE}
 EOF
 )"
 pe "$(cat <<'EOF'

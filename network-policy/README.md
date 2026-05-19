@@ -39,6 +39,13 @@ Initialize environment variables from `environment-variables.md` using `tplenv`:
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
 ```
 
+Create the demo namespace if it does not already exist:
+
+```bash
+# Create the Kubernetes namespace if it does not already exist.
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
+```
+
 Build and push native images:
 
 ```bash
@@ -61,7 +68,7 @@ Create SCONE config files from templates, then run `scone-td-build`:
 # Render the template with the selected values.
 tplenv --file "./manifest.template.yaml" --output "./manifest.yaml"
 # Render the template with the selected values.
-tplenv --file "./scone.template.yaml" --output "./scone.yaml"
+tplenv --file "./scone.template.yaml" --output "./scone.yaml" --indent
 # Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y ./scone.yaml
 ```
@@ -79,7 +86,7 @@ docker push $CLIENT_IMAGE-scone
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f "manifest.prod.sanitized.yaml"
+kubectl apply -f "manifest.prod.sanitized.yaml" -n ${NAMESPACE}
 ```
 
 Wait until all pods are running before continuing.
@@ -90,15 +97,15 @@ Wait for pods and port-forward the server service:
 
 ```bash
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=Ready pod -l app="server" --timeout=300s
+kubectl wait --for=condition=Ready pod -l app="server" -n ${NAMESPACE} --timeout=300s
 # Wait for the Kubernetes resource to reach the expected state.
-kubectl wait --for=condition=Ready pod -l app="client" --timeout=300s
+kubectl wait --for=condition=Ready pod -l app="client" -n ${NAMESPACE} --timeout=300s
 # A ready pod does not always mean the port is immediately available.
 # Wait briefly for the service to become reachable.
 sleep 10
 
 # Start a local port-forward to the Kubernetes workload.
-kubectl port-forward svc/barad-dur 3000 & echo $! > /tmp/pf-3000.pid
+kubectl port-forward svc/barad-dur 3000 -n ${NAMESPACE} & echo $! > /tmp/pf-3000.pid
 ```
 
 Send requests:
@@ -120,7 +127,7 @@ Expected result: a random 7-character password, which confirms:
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifest.prod.sanitized.yaml
+kubectl delete -f manifest.prod.sanitized.yaml -n ${NAMESPACE}
 # Stop the previous background process if it is still running.
 kill $(cat /tmp/pf-3000.pid) || true
 # Remove `/tmp/pf-3000.pid` if it exists.

@@ -54,6 +54,14 @@ Default values are stored in `Values.yaml`. `tplenv` asks whether to keep the de
 - `$SCONE_ENCLAVE` — In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods
 - `$NAMESPACE` — namespace name (for example, `java-demo`)
 
+Assume you start in `scone-td-build-demos` and switch into this demo directory:
+
+```bash
+# Change into `java-args-env-file`.
+pushd java-args-env-file
+rm -f java-args-env-file-example.json || true
+```
+
 Set `SIGNER` for policy signing:
 
 ```bash
@@ -122,7 +130,9 @@ fi
 Apply the manifest and follow the pod logs to confirm the app prints arguments, environment variables, and the contents of the ConfigMap and Secret files:
 
 ```bash
-kubectl apply -f manifests/manifest.yaml
+# Apply the Kubernetes manifest.
+kubectl apply -f manifests/manifest.yaml -n ${NAMESPACE}
+# Follow logs from the Kubernetes workload.
 retry-spinner --retries 10 --wait 2 -- kubectl logs deployment/java-args-env-file -n "${NAMESPACE}" --follow
 ```
 
@@ -131,7 +141,8 @@ Your container should print the command-line args, all environment variables, th
 Clean up the native deployment before moving on:
 
 ```bash
-kubectl delete -f manifests/manifest.yaml
+# Delete the Kubernetes resource if it exists.
+kubectl delete -f manifests/manifest.yaml -n ${NAMESPACE}
 ```
 
 The manifest mounts:
@@ -142,9 +153,19 @@ The manifest mounts:
 
 ## 8. Prepare and Apply the SCONE Manifest
 
-Build the confidential image and generate the SCONE session from `manifests/scone.yaml`:
+First, attest the CAS so the local SCONE CLI has the correct session encryption key. The kubectl path covers an in-cluster CAS; if it fails (typical when `${CAS_NAME}.${CAS_NAMESPACE}` resolves to an external CAS like `scone-cas.cf`), the second branch attests the public CAS directly.
 
 ```bash
+# Attest the CAS instance before sending encrypted policies.
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S \
+    || scone cas attest ${CAS_NAME}.${CAS_NAMESPACE} -C -G -S \
+        --only_for_testing-debug --only_for_testing-ignore-signer --only_for_testing-trust-any
+```
+
+Then build the confidential image and generate the SCONE session from `manifests/scone.yaml`:
+
+```bash
+# Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y manifests/scone.yaml
 ```
 
@@ -159,7 +180,8 @@ This command:
 ## 9. Deploy the SCONE-Protected App
 
 ```bash
-kubectl apply -f manifests/manifest.prod.sanitized.yaml
+# Apply the Kubernetes manifest.
+kubectl apply -f manifests/manifest.prod.sanitized.yaml -n ${NAMESPACE}
 ```
 
 ---
@@ -167,6 +189,7 @@ kubectl apply -f manifests/manifest.prod.sanitized.yaml
 ## 10. View Logs
 
 ```bash
+# Follow logs from the Kubernetes workload.
 retry-spinner -- kubectl logs deployment/java-args-env-file -n "${NAMESPACE}" --follow
 ```
 
@@ -175,7 +198,10 @@ retry-spinner -- kubectl logs deployment/java-args-env-file -n "${NAMESPACE}" --
 ## 11. Clean Up
 
 ```bash
-kubectl delete -f manifests/manifest.prod.sanitized.yaml
+# Delete the Kubernetes resource if it exists.
+kubectl delete -f manifests/manifest.prod.sanitized.yaml -n ${NAMESPACE}
+# Return to the previous working directory.
+popd
 ```
 
 ---

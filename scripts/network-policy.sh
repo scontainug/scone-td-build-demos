@@ -133,6 +133,12 @@ printf "${RESET}"
 # Load environment variables from the tplenv definition file.
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)
 
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' 'Create the demo namespace if it does not already exist:'
+printf '%s\n' ''
+printf "${RESET}"
+
 printf "${ORANGE}"
 printf '%s\n' '# Create the Kubernetes namespace if it does not already exist.'
 printf '%s\n' 'kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"'
@@ -181,7 +187,7 @@ printf "${ORANGE}"
 printf '%s\n' '# Render the template with the selected values.'
 printf '%s\n' 'tplenv --file "./manifest.template.yaml" --output "./manifest.yaml"'
 printf '%s\n' '# Render the template with the selected values.'
-printf '%s\n' 'tplenv --file "./scone.template.yaml" --output "./scone.yaml"'
+printf '%s\n' 'tplenv --file "./scone.template.yaml" --output "./scone.yaml" --indent'
 printf '%s\n' '# Generate the confidential image and sanitized manifest from the SCONE configuration.'
 printf '%s\n' 'scone-td-build from -y ./scone.yaml'
 printf "${RESET}"
@@ -189,7 +195,7 @@ printf "${RESET}"
 # Render the template with the selected values.
 tplenv --file "./manifest.template.yaml" --output "./manifest.yaml"
 # Render the template with the selected values.
-tplenv --file "./scone.template.yaml" --output "./scone.yaml"
+tplenv --file "./scone.template.yaml" --output "./scone.yaml" --indent
 # Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y ./scone.yaml
 

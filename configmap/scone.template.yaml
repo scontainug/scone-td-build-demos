@@ -38,6 +38,7 @@ spec:
   spol: true
   cvm: ${CVM_MODE}
   scone_enclave: ${SCONE_ENCLAVE}
+  version: ${SCONE_RUNTIME_VERSION}
   access_policy:
     read:
       - ANY

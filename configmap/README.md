@@ -38,6 +38,7 @@ Default values are stored in `Values.yaml`. `tplenv` asks whether to keep the de
 - `$CAS_NAME` - CAS name (for example, `cas`)
 - `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX
 - `$SCONE_ENCLAVE` - In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods
+- `$NAMESPACE` - Kubernetes namespace where the demo runs (default: `default`)
 
 Set `SIGNER` for policy signing:
 
@@ -51,6 +52,13 @@ Load the full variable set from `environment-variables.md`:
 ```bash
 # Load environment variables from the tplenv definition file.
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES} --output /dev/null)
+```
+
+Create the demo namespace if it does not already exist. The fallback echo keeps re-runs idempotent.
+
+```bash
+# Create the Kubernetes namespace if it does not already exist.
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 ```
 
 ## 4. Build the Native Rust Image
@@ -87,7 +95,7 @@ If you need a pull secret for native and confidential images, create it when mis
 
 ```bash
 # Check whether the pull secret already exists.
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
   # Print a status message.
   echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
 else
@@ -96,7 +104,7 @@ else
   # Load environment variables from the tplenv definition file.
   eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
   # Create the Docker registry pull secret.
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 fi
 ```
 
@@ -104,20 +112,29 @@ fi
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifests/manifest.yaml
+kubectl apply -f manifests/manifest.yaml -n ${NAMESPACE}
 # Retry the wrapped command until it succeeds or reaches the retry limit.
-retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-1
+retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -n ${NAMESPACE} -c reader-1
 # Retry the wrapped command until it succeeds or reaches the retry limit.
-retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-2
+retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -n ${NAMESPACE} -c reader-2
 
 # Clean up native app
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifests/manifest.yaml
+kubectl delete -f manifests/manifest.yaml -n ${NAMESPACE}
 ```
 
 Your containers should print content from the mounted ConfigMap files.
 
 ## 8. Prepare and Apply the SCONE Manifest
+
+First, attest the CAS so the local SCONE CLI has the correct session encryption key. The kubectl path covers an in-cluster CAS; if it fails (typical when `${CAS_NAME}.${CAS_NAMESPACE}` resolves to an external CAS like `scone-cas.cf`), the second branch attests the public CAS directly.
+
+```bash
+# Attest the CAS instance before sending encrypted policies.
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S \
+    || scone cas attest ${CAS_NAME}.${CAS_NAMESPACE} -C -G -S \
+        --only_for_testing-debug --only_for_testing-ignore-signer --only_for_testing-trust-any
+```
 
 ```bash
 # Generate the confidential image and sanitized manifest from the SCONE configuration.
@@ -134,23 +151,23 @@ This command:
 
 ```bash
 # Apply the Kubernetes manifest.
-kubectl apply -f manifests/manifest.prod.sanitized.yaml
+kubectl apply -f manifests/manifest.prod.sanitized.yaml -n ${NAMESPACE}
 ```
 
 ## 10. View Logs
 
 ```bash
 # Retry the wrapped command until it succeeds or reaches the retry limit.
-retry-spinner -- kubectl logs job/my-rust-app -c reader-1 --follow
+retry-spinner -- kubectl logs job/my-rust-app -n ${NAMESPACE} -c reader-1 --follow
 # Retry the wrapped command until it succeeds or reaches the retry limit.
-retry-spinner -- kubectl logs job/my-rust-app -c reader-2 --follow
+retry-spinner -- kubectl logs job/my-rust-app -n ${NAMESPACE} -c reader-2 --follow
 ```
 
 ## 11. Clean Up
 
 ```bash
 # Delete the Kubernetes resource if it exists.
-kubectl delete -f manifests/manifest.prod.sanitized.yaml
+kubectl delete -f manifests/manifest.prod.sanitized.yaml -n ${NAMESPACE}
 # Return to the previous working directory.
 popd
 ```

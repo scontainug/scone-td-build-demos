@@ -35,15 +35,6 @@ spec:
     - {name: SCONE_PRODUCTION, value: "0"}
     - {name: SCONE_HEAP, value: "2G"}
   permissive: true
-  spol: false
+  spol: true
   cvm: ${CVM_MODE}
   scone_enclave: ${SCONE_ENCLAVE}
-  access_policy:
-    read:
-      - ANY
-    update:
-      - signer: |
-          ${SIGNER}
-    create_sessions:
-      - signer: |
-          ${SIGNER}

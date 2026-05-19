@@ -1,0 +1,18 @@
+environment:
+  AZURE_CREDENTIALS: ./az-credentials.json
+  CVM_CONFIG: ./scone-config.json
+  KUBECONFIG_PATH: ./tdx-kubeconfig.yaml
+  NODE_COUNT: '1'
+  MEMORY: '8'
+  VCORES: '2'
+  RESOURCE_GROUP: ''
+  SCONE_VERSION: 6.1.0-rc.0
+  SGX_PLUGIN_VERSION: 7.0.0-alpha.1
+  CERT_MANAGER_VERSION: v1.17.1
+  DCAP_KEY: ''
+  REGISTRY: registry.scontain.com
+  REGISTRY_USER: ''
+  REGISTRY_TOKEN: ''
+  REGISTRY_EMAIL: ''
+  CAS_NAME: scone-cas
+  CAS_NAMESPACE: cf

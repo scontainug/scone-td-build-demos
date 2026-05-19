@@ -97,7 +97,7 @@ printf '%s\n' '## Prerequisites'
 printf '%s\n' ''
 printf '%s\n' '- `kubectl` configured for your cluster'
 printf '%s\n' '- `docker` with access to a registry your cluster can pull from'
-printf '%s\n' '- `openssl`, `tplenv`, and `envsubst` available in your shell'
+printf '%s\n' '- `openssl` and `tplenv` available in your shell'
 printf '%s\n' '- `scone-td-build` binary'
 printf '%s\n' ''
 printf '%s\n' '---'
@@ -644,21 +644,33 @@ printf "${RESET}"
 
 printf "${ORANGE}"
 printf '%s\n' '# Render the template with the selected values.'
-printf '%s\n' 'tplenv --file scone.template.yaml --create-values-file --output scone.yaml'
+printf '%s\n' 'tplenv --file scone.template.yaml --create-values-file --output scone.yaml --indent'
 printf '%s\n' '# Remove `flask-redis-demo.json` if it exists.'
 printf '%s\n' 'rm flask-redis-demo.json || true'
 printf '%s\n' '# Generate the confidential image and sanitized manifest from the SCONE configuration.'
 printf '%s\n' 'scone-td-build from -y scone.yaml'
+printf '%s\n' '# Use the registry-backed Redis SCONE image that the Register step pushed.'
+printf '%s\n' 'if grep -q '\''image: redis:7-bookworm-scone'\'' manifest.prod.sanitized.yaml; then'
+printf '%s\n' '  sed -i.bak "s|image: redis:7-bookworm-scone|image: ${IMAGE_NAME}-redis-scone|g" manifest.prod.sanitized.yaml'
+printf '%s\n' '  rm -f manifest.prod.sanitized.yaml.bak'
+printf '%s\n' 'fi'
 printf "${RESET}"
 
 # Render the template with the selected values.
-tplenv --file scone.template.yaml --create-values-file --output scone.yaml
+tplenv --file scone.template.yaml --create-values-file --output scone.yaml --indent
 # Remove `flask-redis-demo.json` if it exists.
 rm flask-redis-demo.json || true
 # Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y scone.yaml
+# Use the registry-backed Redis SCONE image that the Register step pushed.
+if grep -q 'image: redis:7-bookworm-scone' manifest.prod.sanitized.yaml; then
+  sed -i.bak "s|image: redis:7-bookworm-scone|image: ${IMAGE_NAME}-redis-scone|g" manifest.prod.sanitized.yaml
+  rm -f manifest.prod.sanitized.yaml.bak
+fi
 
 printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' '`push_scone_image: true` in the templates pushes the confidential images automatically (`scontain/k8s-scone#194` fixed).'
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''

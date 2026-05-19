@@ -138,7 +138,7 @@ printf '%s\n' '## Prerequisites'
 printf '%s\n' ''
 printf '%s\n' '- `kubectl` configured for your cluster'
 printf '%s\n' '- `docker` with access to a registry your cluster can pull from'
-printf '%s\n' '- `openssl`, `tplenv`, and `envsubst` available in your shell'
+printf '%s\n' '- `openssl` and `tplenv` available in your shell'
 printf '%s\n' '- `scone-td-build` binary'
 printf '%s\n' ''
 printf '%s\n' '---'
@@ -903,7 +903,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-tplenv --file scone.template.yaml --create-values-file --output scone.yaml
+tplenv --file scone.template.yaml --create-values-file --output scone.yaml --indent
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -922,8 +922,30 @@ pe "$(cat <<'EOF'
 scone-td-build from -y scone.yaml
 EOF
 )"
+pe "$(cat <<'EOF'
+# Use the registry-backed Redis SCONE image that the Register step pushed.
+EOF
+)"
+pe "$(cat <<'EOF'
+if grep -q 'image: redis:7-bookworm-scone' manifest.prod.sanitized.yaml; then
+EOF
+)"
+pe "$(cat <<'EOF'
+  sed -i.bak "s|image: redis:7-bookworm-scone|image: ${IMAGE_NAME}-redis-scone|g" manifest.prod.sanitized.yaml
+EOF
+)"
+pe "$(cat <<'EOF'
+  rm -f manifest.prod.sanitized.yaml.bak
+EOF
+)"
+pe "$(cat <<'EOF'
+fi
+EOF
+)"
 
 printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' '`push_scone_image: true` in the templates pushes the confidential images automatically (`scontain/k8s-scone#194` fixed).'
 printf '%s\n' ''
 printf '%s\n' '---'
 printf '%s\n' ''

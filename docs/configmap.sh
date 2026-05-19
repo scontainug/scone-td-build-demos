@@ -166,6 +166,7 @@ printf '%s\n' '- `$CAS_NAMESPACE` - CAS namespace (for example, `default`)'
 printf '%s\n' '- `$CAS_NAME` - CAS name (for example, `cas`)'
 printf '%s\n' '- `$CVM_MODE` - Set to `--cvm` for CVM mode, otherwise leave empty for SGX'
 printf '%s\n' '- `$SCONE_ENCLAVE` - In CVM mode, set to `--scone-enclave` for confidential nodes, or leave empty for Kata Pods'
+printf '%s\n' '- `$NAMESPACE` - Kubernetes namespace where the demo runs (default: `default`)'
 printf '%s\n' ''
 printf '%s\n' 'Set `SIGNER` for policy signing:'
 printf '%s\n' ''
@@ -192,6 +193,21 @@ EOF
 )"
 pe "$(cat <<'EOF'
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)
+EOF
+)"
+
+printf "%b" "$LILAC"
+printf '%s\n' ''
+printf '%s\n' 'Create the demo namespace if it does not already exist. The fallback echo keeps re-runs idempotent.'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+# Create the Kubernetes namespace if it does not already exist.
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"
 EOF
 )"
 
@@ -276,7 +292,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-if kubectl get secret "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
+if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -312,7 +328,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-  kubectl create secret docker-registry "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
+  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -331,7 +347,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifests/manifest.yaml
+kubectl apply -f manifests/manifest.yaml -n ${NAMESPACE}
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -339,7 +355,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-1
+retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -n ${NAMESPACE} -c reader-1
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -347,7 +363,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -c reader-2
+retry-spinner --retries 5 --wait 2 -- kubectl logs job/my-rust-app -n ${NAMESPACE} -c reader-2
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -363,7 +379,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifests/manifest.yaml
+kubectl delete -f manifests/manifest.yaml -n ${NAMESPACE}
 EOF
 )"
 
@@ -372,6 +388,23 @@ printf '%s\n' ''
 printf '%s\n' 'Your containers should print content from the mounted ConfigMap files.'
 printf '%s\n' ''
 printf '%s\n' '## 8. Prepare and Apply the SCONE Manifest'
+printf '%s\n' ''
+printf '%s\n' 'First, attest the CAS so the local SCONE CLI has the correct session encryption key. The kubectl path covers an in-cluster CAS; if it fails (typical when `${CAS_NAME}.${CAS_NAMESPACE}` resolves to an external CAS like `scone-cas.cf`), the second branch attests the public CAS directly.'
+printf '%s\n' ''
+printf "%b" "$RESET"
+
+pe "$(cat <<'EOF'
+# Attest the CAS instance before sending encrypted policies.
+EOF
+)"
+pe "$(cat <<'EOF'
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S \
+    || scone cas attest ${CAS_NAME}.${CAS_NAMESPACE} -C -G -S \
+        --only_for_testing-debug --only_for_testing-ignore-signer --only_for_testing-trust-any
+EOF
+)"
+
+printf "%b" "$LILAC"
 printf '%s\n' ''
 printf "%b" "$RESET"
 
@@ -401,7 +434,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl apply -f manifests/manifest.prod.sanitized.yaml
+kubectl apply -f manifests/manifest.prod.sanitized.yaml -n ${NAMESPACE}
 EOF
 )"
 
@@ -416,7 +449,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-retry-spinner -- kubectl logs job/my-rust-app -c reader-1 --follow
+retry-spinner -- kubectl logs job/my-rust-app -n ${NAMESPACE} -c reader-1 --follow
 EOF
 )"
 pe "$(cat <<'EOF'
@@ -424,7 +457,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-retry-spinner -- kubectl logs job/my-rust-app -c reader-2 --follow
+retry-spinner -- kubectl logs job/my-rust-app -n ${NAMESPACE} -c reader-2 --follow
 EOF
 )"
 
@@ -439,7 +472,7 @@ pe "$(cat <<'EOF'
 EOF
 )"
 pe "$(cat <<'EOF'
-kubectl delete -f manifests/manifest.prod.sanitized.yaml
+kubectl delete -f manifests/manifest.prod.sanitized.yaml -n ${NAMESPACE}
 EOF
 )"
 pe "$(cat <<'EOF'

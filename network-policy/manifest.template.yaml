@@ -17,6 +17,7 @@ spec:
         - name: client
           image: ${CLIENT_IMAGE}
           imagePullPolicy: Always
+          command: ["/usr/local/bin/client-rust"]
           env:
             - name: DB
               value: "orthanc:9000"
@@ -59,6 +60,7 @@ spec:
         - name: server
           image: ${SERVER_IMAGE}
           imagePullPolicy: Always
+          command: ["/usr/local/bin/server-rust"]
           ports:
             - name: http
               containerPort: 9000

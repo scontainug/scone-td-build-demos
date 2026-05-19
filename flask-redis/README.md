@@ -26,7 +26,7 @@ flask-redis/
 
 - `kubectl` configured for your cluster
 - `docker` with access to a registry your cluster can pull from
-- `openssl`, `tplenv`, and `envsubst` available in your shell
+- `openssl` and `tplenv` available in your shell
 - `scone-td-build` binary
 
 ---
@@ -330,12 +330,19 @@ Generate the SCONE config from its template, then run `scone-td-build` to produc
 
 ```bash
 # Render the template with the selected values.
-tplenv --file scone.template.yaml --create-values-file --output scone.yaml
+tplenv --file scone.template.yaml --create-values-file --output scone.yaml --indent
 # Remove `flask-redis-demo.json` if it exists.
 rm flask-redis-demo.json || true
 # Generate the confidential image and sanitized manifest from the SCONE configuration.
 scone-td-build from -y scone.yaml
+# Use the registry-backed Redis SCONE image that the Register step pushed.
+if grep -q 'image: redis:7-bookworm-scone' manifest.prod.sanitized.yaml; then
+  sed -i.bak "s|image: redis:7-bookworm-scone|image: ${IMAGE_NAME}-redis-scone|g" manifest.prod.sanitized.yaml
+  rm -f manifest.prod.sanitized.yaml.bak
+fi
 ```
+
+`push_scone_image: true` in the templates pushes the confidential images automatically (`scontain/k8s-scone#194` fixed).
 
 ---
 

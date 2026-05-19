@@ -166,6 +166,12 @@ printf "${RESET}"
 # Load environment variables from the tplenv definition file.
 eval $(tplenv --file environment-variables.md --create-values-file --context --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-} --output /dev/null)
 
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' 'Create the demo namespace if it does not already exist:'
+printf '%s\n' ''
+printf "${RESET}"
+
 printf "${ORANGE}"
 printf '%s\n' '# Create the Kubernetes namespace if it does not already exist.'
 printf '%s\n' 'kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f - 2> /dev/null || echo "Patching namespace ${NAMESPACE} failed -- ignoring this"'
@@ -333,7 +339,25 @@ printf '%s\n' '---'
 printf '%s\n' ''
 printf '%s\n' '## 8. Prepare and Apply the SCONE Manifest'
 printf '%s\n' ''
-printf '%s\n' 'Build the confidential image and generate the SCONE session from `manifests/scone.yaml`:'
+printf '%s\n' 'First, attest the CAS so the local SCONE CLI has the correct session encryption key. The kubectl path covers an in-cluster CAS; if it fails (typical when `${CAS_NAME}.${CAS_NAMESPACE}` resolves to an external CAS like `scone-cas.cf`), the second branch attests the public CAS directly.'
+printf '%s\n' ''
+printf "${RESET}"
+
+printf "${ORANGE}"
+printf '%s\n' '# Attest the CAS instance before sending encrypted policies.'
+printf '%s\n' 'kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S \'
+printf '%s\n' '    || scone cas attest ${CAS_NAME}.${CAS_NAMESPACE} -C -G -S \'
+printf '%s\n' '        --only_for_testing-debug --only_for_testing-ignore-signer --only_for_testing-trust-any'
+printf "${RESET}"
+
+# Attest the CAS instance before sending encrypted policies.
+kubectl scone cas attest --namespace ${CAS_NAMESPACE} ${CAS_NAME} -C -G -S \
+    || scone cas attest ${CAS_NAME}.${CAS_NAMESPACE} -C -G -S \
+        --only_for_testing-debug --only_for_testing-ignore-signer --only_for_testing-trust-any
+
+printf "${VIOLET}"
+printf '%s\n' ''
+printf '%s\n' 'Then build the confidential image and generate the SCONE session from `manifests/scone.yaml`:'
 printf '%s\n' ''
 printf "${RESET}"
 

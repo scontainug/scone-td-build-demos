@@ -91,18 +91,15 @@ If the pull secret does not exist yet, create it using registry credentials.
 - `$REGISTRY_TOKEN` - Registry pull token (see <https://sconedocs.github.io/registry/>)
 
 ```bash
-# Check whether the pull secret already exists.
-if kubectl get secret -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" >/dev/null 2>&1; then
-  # Print a status message.
-  echo "Secret ${IMAGE_PULL_SECRET_NAME} already exists"
-else
-  # Print a status message.
-  echo "Secret ${IMAGE_PULL_SECRET_NAME} does not exist - creating now."
-  # Load environment variables from the tplenv definition file.
-  eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES})
-  # Create the Docker registry pull secret.
-  kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" --docker-server=$REGISTRY --docker-username=$REGISTRY_USER --docker-password=$REGISTRY_TOKEN
-fi
+# Load registry credentials.
+eval $(tplenv --file registry.credentials.md --create-values-file --eval ${CONFIRM_ALL_ENVIRONMENT_VARIABLES-})
+# Create or refresh the Docker registry pull secret idempotently.
+kubectl create secret docker-registry -n "${NAMESPACE}" "${IMAGE_PULL_SECRET_NAME}" \
+  --docker-server="$REGISTRY" \
+  --docker-username="$REGISTRY_USER" \
+  --docker-password="$REGISTRY_TOKEN" \
+  --dry-run=client -o yaml \
+  | kubectl apply -n "${NAMESPACE}" -f -
 ```
 
 ## 5. Run the Native Hello-World Application
@@ -160,7 +157,7 @@ Convert the native manifest into a sanitized confidential manifest:
 
 ```bash
 # Convert the native manifest into a confidential manifest.
-scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml ${CVM_MODE} ${SCONE_ENCLAVE}
+scone-td-build apply -f manifest.job.yaml -c ${CAS_NAME}.${CAS_NAMESPACE} -p -s ./storage.json --manifest-env SCONE_SYSLIBS=1 --manifest-env SCONE_PRODUCTION=0 --manifest-env SCONE_HEAP=1G --spol --manifest-env SCONE_VERSION=1 --output-manifest-file manifest.job.sanitized.yaml --version ${SCONE_RUNTIME_VERSION} ${CVM_MODE} ${SCONE_ENCLAVE}
 ```
 
 ## 9. Deploy the Confidential Manifest
